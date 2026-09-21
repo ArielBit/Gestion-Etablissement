@@ -1,0 +1,89 @@
+use App\Admin\Controllers\ApprenantController;
+use App\Admin\Controllers\AdministrationController;
+use App\Admin\Controllers\AffectationController;
+use App\Admin\Controllers\AnneeScolaireController;
+use App\Admin\Controllers\BulletinController;
+use APP\Admin\Controllers\ClasseController;
+use App\Admin\Controllers\DecisonController;
+use App\Admin\Controllers\EtablissementController;
+use App\Admin\Controllers\EtablissementanneeController;
+use App\Admin\Controllers\EvaluationController;
+use App\Admin\Controllers\InscriptionController;
+use App\Admin\Controllers\MatiereController;
+use App\Admin\Controllers\ModaliteController;
+use App\Admin\Controllers\NoteController;
+use App\Admin\Controllers\PaiementController;
+use App\Admin\Controllers\ParentElevesController;
+use App\Admin\Controllers\ParentsApprenantController;
+use App\Admin\Controllers\ProfesseurController;
+use App\Admin\Controllers\ReçuController;
+use App\Admin\Controllers\TrimestreController;
+use App\Admin\Controllers\TypeFraiController;
+
+
+<?php
+
+/**
+ * Created by Reliese Model.
+ */
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+/**
+ * Class User
+ * 
+ * @property int $id_users
+ * @property string $nom
+ * @property string $prenom
+ * @property string $username
+ * @property string $email
+ * @property Carbon|null $email_verified_at
+ * @property string $password
+ * @property string|null $remember_token
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property int|null $deleted_by
+ *
+ * @package App\Models
+ */
+class User extends Authenticatable
+{
+	//use SoftDeletes;
+	protected $table = 'users';
+	protected $primaryKey = 'id_users';
+	public $incrementing = false;
+
+	protected $casts = [
+		'id_users' => 'int',
+		'email_verified_at' => 'datetime',
+		'created_by' => 'int',
+		'updated_by' => 'int',
+		'deleted_by' => 'int'
+	];
+
+	protected $hidden = [
+		'password',
+		'remember_token'
+	];
+
+	protected $fillable = [
+		'nom',
+		'prenom',
+		'username',
+		'email',
+		'email_verified_at',
+		'password',
+		'remember_token',
+		'created_by',
+		'updated_by',
+		'deleted_by'
+	];
+}

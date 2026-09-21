@@ -1,0 +1,168 @@
+/* Container de type carte bancaire / PVC horizontal */
+.cni-scolaire-horizontal {
+    background: #fdfdfd; 
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #111;
+    max-width: 650px; /* Force l'étalement horizontal */
+}
+
+/* En-tête Orange Côte d'Ivoire */
+.cni-h-orange {
+    background: #ff9f43; 
+    border-bottom: 1px solid #e28732;
+}
+.header-central-text {
+    line-height: 1.1;
+}
+.rci-title {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+.rci-motto {
+    font-size: 9px;
+    font-style: italic;
+    color: #374151;
+}
+.rci-ministry {
+    font-size: 10px;
+}
+
+/* Titre principal orange foncé */
+.cni-h-card-title {
+    color: #d35400;
+    font-size: 17px;
+    letter-spacing: 1px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+/* Corps de la carte */
+.cni-h-body {
+    background-image: radial-gradient(rgba(0, 0, 0, 0.01) 1px, transparent 0);
+    background-size: 10px 10px;
+}
+
+/* Photo d'identité ancrée à gauche */
+.cni-h-photo-frame {
+    width: 115px;
+    height: 145px;
+    border: 1px solid #9ca3af;
+    background: #f3f4f6;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.cni-h-photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.cni-h-photo-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Meta données (Année / Matricule) */
+.line-meta {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 3px;
+}
+.meta-lbl {
+    font-size: 10px;
+    color: #4b5563;
+}
+.meta-val {
+    font-size: 11px;
+}
+
+/* Organisation des lignes d'infos (Valeur en haut, Label en petit italique en dessous) */
+.h-info-group {
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.h-info-group .info-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+}
+.h-info-group .info-lbl {
+    font-size: 10px;
+    font-style: italic;
+    color: #6b7280;
+}
+
+/* Bloc Urgences (Colonne Droite) */
+.h-urgency {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+    border: 1px dashed #cbd5e1;
+}
+.u-lbl {
+    font-size: 9px;
+    color: #4b5563;
+}
+.u-val {
+    font-size: 11px;
+}
+
+.stamp-fictif {
+    font-size: 18px;
+}
+
+/* Bandeau inférieur Vert Côte d'Ivoire */
+.cni-h-green {
+    background: #2ed573;
+    color: #000;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    border-top: 1px solid #26af5f;
+}
+
+/* Cadres circulaires dans l'en-tête orange */
+.header-circle-frame {
+    width: 40px;
+    height: 40px;
+    background-color: #fff;
+    border-radius: 50%;
+    border: 1px solid #e28732;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-circle-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Zone du QR Code en bas à droite */
+.cni-qrcode-box {
+    width: 65px;
+    height: 65px;
+    background-color: #fff;
+    border: 1px solid #cbd5e1;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cni-qrcode-box img {
+    width: 5%;
+    height: 5%;
+    object-fit: contain;
+}
+
+/* Nettoyage du placeholder de photo sans icône */
+.cni-h-photo-placeholder {
+    height:5%;
+    background-color: #e2e8f0;
+}

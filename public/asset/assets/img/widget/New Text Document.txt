@@ -1,0 +1,4 @@
+gestion de mail;
+Mailing; pour les reçus;
+Dynamisation des pages : accueil, footer, header;
+Dynamisé toute la bd;
