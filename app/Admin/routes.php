@@ -3,6 +3,7 @@
 use Illuminate\Routing\Router;
 use Illuminate\Http\Request;
 use App\Admin\Controllers\PersonnelController;
+use App\Admin\ControllersProfEducController;
 use App\Admin\Controllers\PaiementButtonController;
 use App\Admin\Controllers\DonnateurButtonController;
 
@@ -60,6 +61,23 @@ Route::group([
       $router->resource('professeurs', ProfesseurController::class);
       $router->resource('vigiles', VigileController::class);
         $router->resource('personnels-nettoyages', PersonnelsNettoyageController::class);
+
+        /*
+        **EDUCATEUR
+        */
+         $router->resource('apprenant-educ', ApprenantEducController::class);
+          $router->resource('professeur-educ', ProfesseurEducController::class);
+          $router->resource('matiere-classe', MatiereClasseController::class);
+
+           /*
+        **PROFESSEUR
+        */
+         $router->resource('apprenant-prof', ApprenantProfController::class);
+          $router->resource('educ-prof', EducateurProfController::class);
+
+
+          //Global
+          $router->resource('matiere-classes', MatiereClasseController2::class);
      
      Route::get('paiements/valider/{id}', [PaiementButtonController::class, 'valider']);
      Route::get('paiements/rejeter/{id}', [PaiementButtonController::class, 'rejeter']);

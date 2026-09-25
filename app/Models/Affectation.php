@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $professeurs_id
  * @property int $matieres_id
  * @property int $classes_id
+ * @property int $educateurs_id	
  * @property int $etablissementannees_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property Classe $classe
  * @property Matiere $matiere
  * @property Professeur $professeur
+ * @property Educateur $educateur
  * @property Etablissementannee $etablissementannee
  *
  * @package App\Models
@@ -35,12 +37,15 @@ class Affectation extends Model
 {
 	#use SoftDeletes;
 	protected $table = 'affectations';
-	public $incrementing = false;
+	protected $primaryKey = 'id_affectations';
+	public $incrementing = true;
+	protected $keyType = 'int';
 
 	protected $casts = [
 		'professeurs_id' => 'int',
 		'matieres_id' => 'int',
 		'classes_id' => 'int',
+		'educateurs_id' => 'int',
 		'etablissementannees_id' => 'int',
 		'created_by' => 'int',
 		'updated_by' => 'int',
@@ -56,7 +61,7 @@ class Affectation extends Model
 
 	public function classes()
 	{
-		return $this->belongsTo(Classe::class, 'classes_id');
+		return $this->belongsTo(Classe::class, 'classes_id'); 
 	}
 
 	public function matieres()
@@ -67,6 +72,11 @@ class Affectation extends Model
 	public function professeurs()
 	{
 		return $this->belongsTo(Professeur::class, 'professeurs_id');
+	}
+
+	public function educateurs()
+	{
+		return $this->belongsTo(Educateur::class, 'educateurs_id');
 	}
 
 	public function etablissementannee()

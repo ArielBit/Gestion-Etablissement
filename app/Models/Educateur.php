@@ -7,6 +7,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -15,7 +16,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 
  * @property int $id_educateurs
  * @property string $matricule
- * @property string|null $niveau_responsable
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string|null $deleted_at
@@ -23,12 +23,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $updated_by
  * @property int|null $deleted_by
  * @property int $personnels_id
+ * 
+ * @property Collection|Affectation[] $affectations
  *
  * @package App\Models
  */
 class Educateur extends Model
 {
-	//use SoftDeletes;
+	#use SoftDeletes;
 	protected $table = 'educateurs';
 	protected $primaryKey = 'id_educateurs';
 
@@ -41,12 +43,16 @@ class Educateur extends Model
 
 	protected $fillable = [
 		'matricule',
-		'niveau_responsable',
 		'created_by',
 		'updated_by',
 		'deleted_by',
 		'personnels_id'
 	];
+
+	public function affectations()
+	{
+		return $this->hasMany(Affectation::class, 'educateurs_id');
+	}
 
 	public function personnel()
 	{

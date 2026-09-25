@@ -4,7 +4,7 @@ return [
     'online'                => 'En ligne',
     'login'                 => 'Connexion',
     'logout'                => 'Déconnexion',
-    'setting'               => 'Paramètres',
+    'setting'              => 'Mon Profil',
     'name'                  => 'Nom',
     'username'              => 'Nom d\'utilisateur',
     'password'              => 'Mot de passe',

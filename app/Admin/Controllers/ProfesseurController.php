@@ -84,21 +84,20 @@ class ProfesseurController extends AdminController
     protected function form()
     {
         $form = new Form(new Professeur());
-         $personnels = \App\Models\Personnel::where('fonction', 'Professeur')
-        ->get()
-        ->mapWithKeys(function ($item) {
-            
-            return [$item->id_personnel => $item->nom . ' ' . $item->prenom]; 
-        });
+        
+         $personnels = \App\Models\Personnel::where('fonction', 'Professeur') // ou selon votre filtre
+    ->get()
+    ->mapWithKeys(function ($item) {
+        // La clé doit être la clé primaire exacte (id_personnel)
+        return [$item->id_personnel => $item->nom . ' ' . $item->prenom];
+    });
 
-    
-    $form->select('personnels_id', __('Personnel (Professeur)'))
-        ->options($personnels)
-        ->rules('required');
+$form->select('personnels_id', __('Personnel (Professeur)'))
+    ->options($personnels)
+    ->rules('required');
         
         $form->select('matieres_id', __('Specialité'))->options(\App\Models\Matiere::pluck('nom_matiere', 'id_matieres'));
         $form->image('diplome', __('Diplome'));
-        $form->text('matricule', __('Matricule'));
        /* $form->number('created_by', __('Created by'));
         $form->number('updated_by', __('Updated by'));
         $form->number('deleted_by', __('Deleted by'));*/

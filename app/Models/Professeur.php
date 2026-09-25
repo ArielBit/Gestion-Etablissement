@@ -64,14 +64,14 @@ class Professeur extends Model
 		return $this->belongsTo(Matiere::class, 'matieres_id');
 	}
 
-	public function personnel()
-	{
-		return $this->belongsTo(Personnel::class, 'personnels_id','id_personnel');
-	}
-
 	public function affectations()
 	{
-		return $this->hasMany(Affectation::class, 'professeurs_id');
+		return $this->hasMany(Affectation::class, 'educateurs_id');
+	}
+
+	public function personnel()
+	{
+		return $this->belongsTo(Personnel::class, 'personnels_id');
 	}
 
 	public function evaluations()

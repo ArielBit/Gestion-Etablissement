@@ -31,7 +31,6 @@ class EducateurController extends AdminController
         $grid->column('personnel.nom', __('Nom'));
         $grid->column('personnel.prenom', __('Prenom'));
         $grid->column('matricule', __('Matricule'));
-        $grid->column('niveau_responsable', __('Niveau responsable'));
         /*$grid->column('created_at', __('Created at'));
         $grid->column('updated_at', __('Updated at'));
         $grid->column('deleted_at', __('Deleted at'));
@@ -55,7 +54,6 @@ class EducateurController extends AdminController
 
         $show->field('id_educateurs', __('Id educateurs'));
         $show->field('matricule', __('Matricule'));
-        $show->field('niveau_responsable', __('Niveau responsable'));
         $show->field('created_at', __('Created at'));
         $show->field('updated_at', __('Updated at'));
         $show->field('deleted_at', __('Deleted at'));
@@ -88,7 +86,7 @@ class EducateurController extends AdminController
         ->options($personnels)
         ->rules('required');
 
-        $form->text('niveau_responsable', __('Niveau responsable'));
+
        /* $form->number('created_by', __('Created by'));
         $form->number('updated_by', __('Updated by'));
         $form->number('deleted_by', __('Deleted by'));*/

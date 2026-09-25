@@ -58,7 +58,7 @@ class Personnel extends Model
 		'nom',
 		'prenom',
 		'sexe',
-		'date_naissance',
+		'nomdate_naissance',
 		'telephone',
 		'email',
 		'adresse',

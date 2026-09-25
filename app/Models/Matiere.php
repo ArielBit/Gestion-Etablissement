@@ -23,7 +23,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $deleted_by
+ * @property int $classes_id
  * 
+ * @property Class $class
  * @property Collection|Affectation[] $affectations
  * @property Collection|BulletinsMatiere[] $bulletins_matieres
  * @property Collection|Evaluation[] $evaluations
@@ -33,7 +35,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Matiere extends Model
 {
-	//use SoftDeletes;
+	#use SoftDeletes;
 	protected $table = 'matieres';
 	protected $primaryKey = 'id_matieres';
 
@@ -41,7 +43,8 @@ class Matiere extends Model
 		'coeficient' => 'int',
 		'created_by' => 'int',
 		'updated_by' => 'int',
-		'deleted_by' => 'int'
+		'deleted_by' => 'int',
+		'classes_id' => 'int'
 	];
 
 	protected $fillable = [
@@ -49,8 +52,14 @@ class Matiere extends Model
 		'coeficient',
 		'created_by',
 		'updated_by',
-		'deleted_by'
+		'deleted_by',
+		'classes_id'
 	];
+
+	public function classe()
+	{
+		return $this->belongsTo(Classe::class, 'classes_id','id_classes');
+	}
 
 	public function affectations()
 	{

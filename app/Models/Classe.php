@@ -58,4 +58,9 @@ class Classe extends Model
 					->withPivot('deleted_at', 'created_by', 'updated_by', 'deleted_by')
 					->withTimestamps();
 	}
+
+	public function matieres()
+	{
+		return $this->hasMany(Matiere::class, 'classes_id');
+	}
 }

@@ -12,7 +12,7 @@ class ProfesseurObserver
     public function creating(Professeur $professeur)
     {
         // 1. Récupère le dernier ID en BDD pour calculer le suivant
-        $nextId = (Professeur::max('id_professeur') ?? 0) + 1;
+        $nextId = (Professeur::max('id_professeurs') ?? 0) + 1;
 
         // 2. Assigne le numéro de badge sur l'instance en cours de création
         $professeur->matricule = 'PROF-' . date('Y') . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);

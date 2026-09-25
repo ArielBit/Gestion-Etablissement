@@ -3,6 +3,7 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Affectation;
+
 use Encore\Admin\Form;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Show;
@@ -27,10 +28,28 @@ class AffectationController extends AdminController
     {
         $grid = new Grid(new Affectation());
 
-        $grid->column('professeurs.nom', __('Nom Professeurs'));
-        $grid->column('professeurs.prenom', __('Prénom Professeurs'));
-        $grid->column('matieres.nom_matiere', __('Matieres'));
-        $grid->column('classes.nom_classe', __('Classes '));
+        $grid->column('id_affectations', __('Id'));
+
+        $grid->column('professeur', __('Professeur'))->display(function () {
+    $personnel = optional($this->professeurs)->personnel;
+
+    return $personnel
+        ? $personnel->nom . ' ' . $personnel->prenom
+        : '-';
+});
+
+$grid->column('matieres.nom_matiere', __('Matière'));
+
+$grid->column('classes.nom_classe', __('Classe'));
+
+$grid->column('educateur', __('Educateur'))->display(function () {
+    $personnel = optional($this->educateurs)->personnel;
+
+    return $personnel
+        ? $personnel->nom . ' ' . $personnel->prenom
+        : '-';
+});
+
         $grid->column('annee_scolaire', 'Année scolaire')
     ->display(function () {
         return optional(
@@ -69,12 +88,12 @@ class AffectationController extends AdminController
         $show->field('matieres_id', __('Matieres id'));
         $show->field('classes_id', __('Classes id'));
         $show->field('etablissementannees_id', __('Etablissementannees id'));
-        $show->field('created_at', __('Created at'));
+        /*$show->field('created_at', __('Created at'));
         $show->field('updated_at', __('Updated at'));
         $show->field('deleted_at', __('Deleted at'));
         $show->field('created_by', __('Created by'));
         $show->field('updated_by', __('Updated by'));
-        $show->field('deleted_by', __('Deleted by'));
+        $show->field('deleted_by', __('Deleted by'));*/
 
         return $show;
     }
@@ -90,12 +109,37 @@ class AffectationController extends AdminController
 
         $form->select('professeurs_id', 'Professeurs')
     ->options(
-        \App\Models\Professeur::all()->mapWithKeys(function ($professeur) {
-            return [
-                $professeur->id_professeurs => $professeur->nom . ' ' . $professeur->prenom
-            ];
-        })
-    );
+        \App\Models\Professeur::with('personnel')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                // Sécurité avec optional() ou nullsafe operator PHP 8 (?->)
+                $nom = optional($item->personnel)->nom ?? '';
+                $prenom = optional($item->personnel)->prenom ?? '';
+
+                return [
+                    $item->id_professeurs => trim($nom . ' ' . $prenom)
+                ];
+            })
+    )
+    ->rules('required');
+
+    $form->select('educateurs_id', __('Educateur'))
+    ->options(
+        \App\Models\Educateur::with('personnel')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                // Sécurité avec optional() ou nullsafe operator PHP 8 (?->)
+                $nom = optional($item->personnel)->nom ?? '';
+                $prenom = optional($item->personnel)->prenom ?? '';
+
+                return [
+                    $item->id_educateurs => trim($nom . ' ' . $prenom)
+                ];
+            })
+    )
+    ->rules('required');
+
+
         $form->select('matieres_id', 'Matières')
     ->options(\App\Models\Matiere::pluck('nom_matiere', 'id_matieres'));
 
@@ -113,9 +157,9 @@ class AffectationController extends AdminController
                 ];
             }) 
     );
-        $form->number('created_by', __('Created by'));
+        /*$form->number('created_by', __('Created by'));
         $form->number('updated_by', __('Updated by'));
-        $form->number('deleted_by', __('Deleted by'));
+        $form->number('deleted_by', __('Deleted by'));*/
 
         return $form;
     }

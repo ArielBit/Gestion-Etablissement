@@ -3,6 +3,7 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Matiere;
+use App\Models\Classe;
 use Encore\Admin\Form;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Show;
@@ -29,6 +30,7 @@ class MatiereController extends AdminController
 
        // $grid->column('id_matieres', __('Id matieres'));
         $grid->column('nom_matiere', __('Nom matiere'));
+        $grid->column('classe.nom_classe', __('Classe'));
         $grid->column('coeficient', __('Coeficient'));
 
         #AT
@@ -83,6 +85,7 @@ class MatiereController extends AdminController
         $form = new Form(new Matiere());
 
         $form->text('nom_matiere', __('Nom matiere'));
+        $form->select('classes_id', __('Classe'))->options(Classe::pluck('nom_classe', 'id_classes'));
         $form->number('coeficient', __('Coeficient'));
         
 
