@@ -84,6 +84,16 @@
                     <p class="box-text text-white wow fadeInUp" data-wow>
                         {{$paiements->texte_deux}}
                     </p>
+                    @guest
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                    Veuillez vous <a href="{{ route('connexion')}}">connectez</a> à votre compte avant de débuter.
+                     Si vous n'avez pas encore de compte, cliquez <a href="{{ route('creationcompte')}}">ici</a> pour en créer.
+                </p> 
+                @endguest
+                <hr>
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                   <i> Les chanmps marqués avec un (<strong style="color:red;"> * </strong>) sont obligatoires.</i>
+                </p>
                 </div>
             </div>
         </div>
@@ -114,7 +124,7 @@
 </script>
 
 <div class="form-group style-border col-12 mb-3">
-    <label for="apprenants_id" class="text-white mb-2">Choisissez le nom complet de l'apprenant</label>
+    <label for="apprenants_id" class="text-white mb-2">Choisissez le nom complet de l'apprenant<strong style="color:red;"> *</strong></label>
     <select id="apprenants_id" name="apprenants_id" class="form-select" required>
         <option value="">--Sélectionner--</option>
         @foreach ($apprenant as $apprenants)
@@ -150,7 +160,7 @@
 </div>
 
             <div class="form-group style-border col-12 mb-3" id="type-frais">
-                <label for="type-frais" class="text-white mb-2">Type de Frais</label>
+                <label for="type-frais" class="text-white mb-2">Type de Frais<strong style="color:red;"> *</strong></label>
                 <select id="type-frais" name="type_frais" class="form-select">
                     <option value="">-- Sélectionner le type de frais --</option>
                     <option value="inscription">Frais d'inscription</option>
@@ -161,7 +171,7 @@
 
 
             <div class="form-group style-border col-12 mb-3">
-                <label class="text-white mb-2 d-block">Modalité de paiement</label>
+                <label class="text-white mb-2 d-block">Modalité de paiement<strong style="color:red;"> *</strong></label>
                 
                 <div id="paiement-mensuel" class="form-check mb-2">
                     <input type="radio" name="modalite" id="mensuel-paiement" value="Paiement Mensuel" class="form-check-input" required> 
@@ -175,9 +185,9 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="tranche-paiement" style="display: none;">
-                <label for="paiement-tranche" class="text-white mb-2">Tranche de Paiement</label>
+                <label for="paiement-tranche" class="text-white mb-2">Tranche de Paiement<strong style="color:red;"> *</strong></label>
                 <select id="paiement-tranche" name="tranche_paiement" class="form-select">
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     <option value="Payer une fois par mois">Payer une fois par mois</option>
                     <option value="Payer pour deux mois">Payer pour deux mois</option>
                     <option value="Payer pour trois mois">Payer pour trois mois</option>
@@ -186,9 +196,9 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="choix-un-mois" style="display: none;">
-                <label for="un-mois-choix" class="text-white mb-2">Choix du mois</label>
+                <label for="un-mois-choix" class="text-white mb-2">Choix du mois<strong style="color:red;"> *</strong></label>
                 <select id="un-mois-choix" name="choix_mois" class="form-select">
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     <option value="Septembre">Septembre</option>
                     <option value="Octobre">Octobre</option>
                     <option value="Novembre">Novembre</option>
@@ -202,7 +212,7 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="choix-deux-mois" style="display: none;">
-                <label for="deux-mois-choix" class="text-white mb-2">Choix de deux mois</label>
+                <label for="deux-mois-choix" class="text-white mb-2">Choix de deux mois<strong style="color:red;"> *</strong></label>
                 <select id="deux-mois-choix" name="choix_mois" class="form-select">
                     <option value="">--Sélectionner--</option>
                     <option value="Septembre-Octobre">Septembre-Octobre</option>
@@ -217,7 +227,7 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="choix-trois-mois" style="display: none;">
-                <label for="trois-mois-choix" class="text-white mb-2">Choix de trois mois</label>
+                <label for="trois-mois-choix" class="text-white mb-2">Choix de trois mois<strong style="color:red;"> *</strong></label>
                 <select id="trois-mois-choix" name="choix_mois" class="form-select">
                     <option value="">--Sélectionner--</option>
                     <option value="Septembre-Octobre-Novembre">Septembre-Octobre-Novembre</option>
@@ -231,7 +241,7 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="choix-quatre-mois" style="display: none;">
-                <label for="quatre-mois-choix" class="text-white mb-2">Choix de quatre mois</label>
+                <label for="quatre-mois-choix" class="text-white mb-2">Choix de quatre mois<strong style="color:red;"> *</strong></label>
                 <select id="quatre-mois-choix" name="choix_mois" class="form-select">
                     <option value="">--Sélectionner--</option>
                     <option value="Septembre-Octobre-Novembre-Décembre">Septembre-Octobre-Novembre-Décembre</option>
@@ -244,16 +254,16 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="choix-premier-mois" style="display: none;">
-                <label for="choix-mois-premier" class="text-white mb-2">Choix Premier mois</label>
+                <label for="choix-mois-premier" class="text-white mb-2">Choix Premier mois<strong style="color:red;"> *</strong></label>
                 <select id="choix-mois-premier" name="choix_premiermois" class="form-select">
                     <option value="">--Sélectionner--</option>
-                    <option value="Payer la somme demandé">Payer la somme demandé</option>
+                    <option value="Payer la somme demandé">Payer la somme demandé></option>
                     <option value="Payer en fonction de ses moyens">Payer en fonction de ses moyens</option>
                 </select>
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="modes-paiement-container">
-                <label for="modes-paiement" class="text-white mb-2">Modes de Paiement</label>
+                <label for="modes-paiement" class="text-white mb-2">Modes de Paiement<strong style="color:red;"> *</strong></label>
                 <select id="modes-paiement" name="modes_paiement" class="form-select" required>
                     <option value="">--Sélectionner--</option>
                     <option value="Carte Bancaire">Carte Bancaire</option>
@@ -262,9 +272,9 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="banque-container" style="display: none;">
-                <label for="banque" class="text-white mb-2">Banque</label>
+                <label for="banque" class="text-white mb-2">Banque<strong style="color:red;"> *</strong></label>
                 <select id="banque" name="banque" class="form-select">
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     <option value="BANQUE ATLANTIQUE">BANQUE ATLANTIQUE</option>
                     <option value="BICICI">BICICI</option>
                     <option value="CORIS BANK">CORIS BANK</option>
@@ -349,7 +359,7 @@
             </div>
 
             <div class="form-group style-border col-12 mb-3">
-                <label for="montant_attendu" class="text-white mb-2">Montant à régler</label>
+                <label for="montant_attendu" class="text-white mb-2">Montant à régler<strong style="color:red;"> *</strong></label>
                 <input type="number" id="montant_attendu" name="montant_attendu" class="form-control" placeholder="Montant à régler" required>
 
 

@@ -72,7 +72,7 @@ class ProfesseurEducController extends AdminController
         $grid->disableFilter();
 
         // 5. Colonne Classe
-        $grid->column('classes.nom_classe', __('Classe'));
+       /*$grid->column('classes.nom_classe', __('Classe'));
 
         // 6. Colonnes Professeurs relatives à la table Affectation
         // ID des Professeurs
@@ -112,7 +112,7 @@ class ProfesseurEducController extends AdminController
             $html .= '</ul>';
 
             return $html;
-        });
+        });*/
 
         // Nom des Professeurs
         $grid->column('professeurs_noms', __('Nom '))->display(function () {

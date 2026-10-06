@@ -23,11 +23,11 @@
     </div>
 </div>
 
-<!--==============================
-    PROGRAM AREA
-==============================-->
+        <!--==============================
+                 PROGRAM AREA
+        ==============================-->
 <section class="th-program-wrapper program-details space-top space-extra2-bottom overflow-hidden">
-    <div class="container th-container4">
+    <div class="container th-container4">  
         <div class="row gy-4 gx-60">
             <div class="col-xl-8">
                 <div class="peogram-area">
@@ -83,6 +83,16 @@
                 <p class="box-text text-white wow fadeInUp" data-wow>
                     {{ $inscriptions->texte_deux }}
                 </p>
+                @guest
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                    Veuillez vous <a href="{{ route('connexion')}}">connectez</a> à votre compte avant de débuter.
+                     Si vous n'avez pas encore de compte, cliquez <a href="{{ route('creationcompte')}}">ici</a> pour en créer.
+                </p> 
+                @endguest
+                <hr>
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                   <i> Les chanmps marqués avec un (<strong style="color:red;"> * </strong>) sont obligatoires.</i>
+                </p>
             </div>
         </div>
     </div>
@@ -106,26 +116,26 @@
                             
                             <div class="row">
                                 <!-- Photo -->
-                                <div class="form-group style-border col-12 mb-4">
-                                    <label for="photo" class="text-white mb-2">Photo de l'élève</label>
+                                <div class="form-gtp style-border col-12 mb-4">
+                                    <label for="photo" class="text-white mb-2">Photo de l'élève <strong style="color:red;"> *</strong></label>
                                     <input type="file" name="photo" id="photo" class="form-control" required>
                                 </div>
 
                                 <!-- Identité -->
-                                <div class="form-group style-border col-md-6 mb-3">
-                                    <label for="nom" class="text-white mb-2">Nom</label>
+                                <div class="form-gep style-border col-md-6 mb-3">
+                                    <label for="nom" class="text-white mb-2">Nom<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Nom" name="nom" id="nom" required>
                                 </div>
 
                                 <div class="form-group style-border col-md-6 mb-3">
-                                    <label for="prenom" class="text-white mb-2">Prénom</label>
+                                    <label for="prenom" class="text-white mb-2">Prénom<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Prénom" name="prenom" id="prenom" required>
                                 </div>
 
-                                <div class="form-group style-border col-md-6 mb-3">
-                                    <label for="sexe" class="text-white mb-2">Sexe</label>
+                                <div class="form-g(rou)p style-border col-md-6 mb-3">
+                                    <label for="sexe" class="text-white mb-2">Sexe<strong style="color:red;"> *</strong></label>
                                     <select id="sexe" name="sexe" class="form-select" required>
-                                        <option value="">Sélectionner</option>
+                                        <option value="">--Sélectionner--</option>
                                         <option value="masculin">Masculin</option>
                                         <option value="feminin">Féminin</option>
                                     </select>
@@ -159,10 +169,10 @@
 @endphp
 
 <div class="form-group style-border col-md-6 mb-3">
-    <label for="nationalite" class="text-white mb-2">Nationalité</label>
+    <label for="nationalite" class="text-white mb-2">Nationalité<strong style="color:red;"> *</strong></label>
     <div class="position-relative">
         <select class="form-select" name="nationalite" id="nationalite" required>
-            <option value="" disabled {{ old('nationalite') ? '' : 'selected' }}>Choisir une nationalité...</option>
+            <option value="" disabled {{ old('nationalite') ? '' : 'selected' }}>--Choisir une nationalit--</option>
             @foreach($nationalites as $nationalite)
                 <option value="{{ $nationalite }}" {{ old('nationalite') == $nationalite ? 'selected' : '' }} style="background-color: #11141b; color: #fff;">
                     {{ $nationalite }}
@@ -176,30 +186,30 @@
 </div>
 
                                 <div class="form-group style-border col-md-4 mb-3">
-                                    <label for="date_naissance" class="text-white mb-2">Date de Naissance</label>
+                                    <label for="date_naissance" class="text-white mb-2">Date de Naissance<strong style="color:red;"> *</strong></label>
                                     <input type="date" class="form-control" name="date_naissance" id="date_naissance" required>
                                 </div>
 
                                 <div class="form-group style-border col-md-5 mb-3">
-                                    <label for="lieu_naissance" class="text-white mb-2">Lieu de Naissance</label>
+                                    <label for="lieu_naissance" class="text-white mb-2">Lieu de Naissance<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Lieu de Naissance" name="lieu_naissance" id="lieu_naissance" required>
                                 </div>
 
                                 <div class="form-group style-border col-md-3 mb-3">
-                                    <label for="age" class="text-white mb-2">Âge</label>
+                                    <label for="age" class="text-white mb-2">Âge<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Âge" name="age" id="age" required>
                                 </div>
 
                                 <div class="form-group style-border col-12 mb-3">
-                                    <label for="lieu_residence" class="text-white mb-2">Lieu de Résidence</label>
+                                    <label for="lieu_residence" class="text-white mb-2">Lieu de Résidence<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Lieu de Résidence" name="lieu_residence" id="lieu_residence" required>
                                 </div>
 
                                 <!-- Cursus -->
                                 <div class="form-group style-border col-md-6 mb-3">
-                                    <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire</label>
+                                    <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire<strong style="color:red;"> *</strong></label>
                                     <select id="etablissementannees_id" name="etablissementannees_id" class="form-select" required>
-                                        <option value="">Sélectionner</option>
+                                        <option value="">--Sélectionner--</option>
                                         @foreach($annees as $annee)
                                             <option value="{{ $annee->id_etablissementannees }}">{{ $annee->anneeScolaire->annee_scolaire }}</option>
                                         @endforeach
@@ -211,9 +221,9 @@
 ====================================================================================================================================== -->
 
 <div class="form-group style-border col-md-6 mb-3">
-    <label for="type_enseignement" class="text-white mb-2">Type d'enseignement</label>
+    <label for="type_enseignement" class="text-white mb-2">Type d'enseignement<strong style="color:red;"> *</strong></label>
     <select id="type_enseignement" name="type_enseignement" class="form-select" required>
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         <option value="general">Général</option>
         <option value="technique">Technique</option>
     </select>
@@ -221,9 +231,9 @@
 
 <!-- Blocs Conditionnels (JS) -->
 <div class="form-group style-border col-12 mb-3" id="cycle-container" style="display: none;">
-    <label for="cycle" class="text-white mb-2">Type de Cycle</label>
+    <label for="cycle" class="text-white mb-2">Type de Cycle<strong style="color:red;"> *</strong></label>
     <select id="cycle" name="cycle" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         <option value="Premier Cycle">Premier Cycle</option>
         <option value="Second Cycle">Second Cycle</option>
     </select>
@@ -231,9 +241,9 @@
 
 <!-- Premier Cycle Général -->
 <div class="form-group style-border col-12 mb-3" id="niveau-etude-general1" style="display: none;">
-    <label for="niveau-general-etude1" class="text-white mb-2">Niveau d'étude Général</label>
+    <label for="niveau-general-etude1" class="text-white mb-2">Niveau d'étude Général<strong style="color:red;"> *</strong></label>
     <select id="niveau-general-etude1" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @if(isset($scolarites['Sixième (6ème)']))
             <option value="{{ $scolarites['Sixième (6ème)']->id }}" data-montant="{{ $scolarites['Sixième (6ème)']->montant }}">Sixième (6ème)</option>
         @endif
@@ -251,9 +261,9 @@
 
 <!-- Second Cycle Général - Sélection du Niveau -->
 <div class="form-group style-border col-12 mb-3" id="niveau-etude-general2" style="display: none;">
-    <label for="niveau-general-etude2" class="text-white mb-2">Niveau d'étude Général</label>
+    <label for="niveau-general-etude2" class="text-white mb-2">Niveau d'étude Général<strong style="color:red;"> *</strong></label>
     <select id="niveau-general-etude2" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         <option value="Seconde (2nde)">Seconde (2nde)</option>
         <option value="Première (1ère)">Première (1ère)</option>
         <option value="Terminale (Tle)">Terminale (Tle)</option>
@@ -262,9 +272,9 @@
 
 <!-- Enseignement Technique - Sélection du Niveau -->
 <div class="form-group style-border col-12 mb-3" id="niveau-etude-technique" style="display: none;">
-    <label for="niveau-technique-etude" class="text-white mb-2">Niveau d'étude Technique</label>
+    <label for="niveau-technique-etude" class="text-white mb-2">Niveau d'étude Technique<strong style="color:red;"> *</strong></label>
     <select id="niveau-technique-etude" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         <option value="Seconde (2nde)">Seconde (2nde)</option>
         <option value="Première (1ère)">Première (1ère)</option>
         <option value="Terminale (Tle)">Terminale (Tle)</option>
@@ -273,9 +283,9 @@
 
 <!-- Séries / Options : Technique Seconde -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-technique-seconde" style="display: none;">  
-    <label for="type-niveau-seconde-technique" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-seconde-technique" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-seconde-technique" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Seconde B (2nde B)', 'Seconde E (2nde E)', 'Seconde F1 (2nde F1)', 'Seconde F2 (2nde F2)', 'Seconde G1 (2nde G1)', 'Seconde G2 (2nde G2)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -286,9 +296,9 @@
 
 <!-- Séries / Options : Technique Première -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-technique-premiere" style="display: none;">  
-    <label for="type-niveau-premiere-technique" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-premiere-technique" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-premiere-technique" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Première B (1ère B)', 'Première E (1ère E)', 'Première F1 (1ère F1)', 'Première F2 (1ère F2)', 'Première G1 (1ère G1)', 'Première G2 (1ère G2)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -299,9 +309,9 @@
 
 <!-- Séries / Options : Technique Terminale -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-technique-terminale" style="display: none;">  
-    <label for="type-niveau-terminale-technique" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-terminale-technique" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-terminale-technique" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Terminale B (Tle B)', 'Terminale E (Tle E)', 'Terminale F1 (Tle F1)', 'Terminale F2 (Tle F2)', 'Terminale G1 (Tle G1)', 'Terminale G2 (Tle G2)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -312,9 +322,9 @@
 
 <!-- Séries / Options : Général Seconde -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-general-seconde" style="display: none;">  
-    <label for="type-niveau-seconde-general" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-seconde-general" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-seconde-general" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Seconde A1 (2nde A1)', 'Seconde A2 (2nde A2)', 'Seconde C (2nde C)', 'Seconde D (2nde D)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -325,9 +335,9 @@
 
 <!-- Séries / Options : Général Première -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-general-premiere" style="display: none;">  
-    <label for="type-niveau-premiere-general" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-premiere-general" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-premiere-general" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Première A1 (1ère A1)', 'Première A2 (1ère A2)', 'Première C (1ère C)', 'Première D (1ère D)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -338,9 +348,9 @@
 
 <!-- Séries / Options : Général Terminale -->
 <div class="form-group style-border col-12 mb-3" id="type-niveau-general-terminale" style="display: none;">  
-    <label for="type-niveau-terminale-general" class="text-white mb-2">Type d'étude</label>
+    <label for="type-niveau-terminale-general" class="text-white mb-2">Type d'étude<strong style="color:red;"> *</strong></label>
     <select id="type-niveau-terminale-general" class="form-select">
-        <option value="">Sélectionner</option>
+        <option value="">--Sélectionner--</option>
         @foreach(['Terminale A1 (Tle A1)', 'Terminale A2 (Tle A2)', 'Terminale C (Tle C)', 'Terminale D (Tle D)'] as $classe)
             @if(isset($scolarites[$classe]))
                 <option value="{{ $scolarites[$classe]->id }}" data-montant="{{ $scolarites[$classe]->montant }}">{{ $classe }}</option>
@@ -355,12 +365,12 @@
 <!-- Par ceci : -->
 <div id="section-moyenne-photo" class="row col-12 p-0 m-0 d-none">
     <div class="form-group style-border col-md-6 mb-3">
-        <label class="text-white mb-2">Moyenne annuelle/examen</label>
+        <label class="text-white mb-2">Moyenne annuelle/examen<strong style="color:red;"> *</strong></label>
         <input type="text" class="form-control" placeholder="Moyenne" name="moyenne" id="moyenne">
     </div>
 
     <div class="form-group style-border col-md-6 mb-3">
-        <label class="text-white mb-2">Photo Bulletin/Diplôme</label>
+        <label class="text-white mb-2">Photo Bulletin/Diplôme<strong style="color:red;"> *</strong></label>
         <input type="file" name="photo_b" id="photo_b" class="form-control">
     </div>
 </div>
@@ -373,11 +383,11 @@
                                 </div>
 
                                 <div class="form-group style-border col-md-4 mb-3">
-                                    <label class="text-white mb-2">Nom complet du Père</label>
+                                    <label class="text-white mb-2">Nom complet du Père<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Nom et Prénom " name="pere" id="pere">
                                 </div>
                                 <div class="form-group style-border col-md-4 mb-3">
-                                    <label class="text-white mb-2">Téléphone du Père</label>
+                                    <label class="text-white mb-2">Téléphone du Père<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Tél du Père" name="tel_pere" id="tel_pere">
                                 </div>
                                 <div class="form-group style-border col-md-4 mb-3">
@@ -386,11 +396,11 @@
                                 </div>
 
                                 <div class="form-group style-border col-md-4 mb-3">
-                                    <label class="text-white mb-2">Nom complet de la Mère</label>
+                                    <label class="text-white mb-2">Nom complet de la Mère<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Nom et Prénom " name="mere" id="mere">
                                 </div>
                                 <div class="form-group style-border col-md-4 mb-3">
-                                    <label class="text-white mb-2">Téléphone de la Mère</label>
+                                    <label class="text-white mb-2">Téléphone de la Mère<strong style="color:red;"> *</strong></label>
                                     <input type="text" class="form-control" placeholder="Tél de la Mère" name="tel_mere" id="tel_mere">
                                 </div>
                                 <div class="form-group style-border col-md-4 mb-3">

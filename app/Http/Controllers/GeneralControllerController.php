@@ -201,10 +201,13 @@ class GeneralControllerController extends Controller
 
     public function paiement (){
 
-    // Somme des paiements valides pour chaque apprenants
-    $apprenant = Apprenant::withSum(['paiements' => function($query) {
-        $query->where('statut_paiement', 'VALIDE');
-    }], 'montant_attendu')->get();
+    
+    // Récupère uniquement les apprenants associés à l'utilisateur connecté
+    $apprenant = Apprenant::where('users_id', Auth::id())
+        ->withSum(['paiements' => function ($query) {
+            $query->where('statut_paiement', 'VALIDE');
+        }], 'montant_attendu')
+        ->get();
 
     $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
     $headers = Header::all();

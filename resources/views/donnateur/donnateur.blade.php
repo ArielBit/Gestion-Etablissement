@@ -84,6 +84,16 @@
                     <p class="box-text text-white wow fadeInUp" data-wow>
                         {{ $donateurs->texte_deux }}
                     </p>
+                    @guest
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                    Veuillez vous <a href="{{ route('connexion')}}">connectez</a> à votre compte avant de débuter.
+                     Si vous n'avez pas encore de compte, cliquez <a href="{{ route('creationcompte')}}">ici</a> pour en créer.
+                </p> 
+                @endguest
+                <hr>
+                <p class="box-text text-white wow fadeInUp" data-wow>
+                   <i> Les chanmps marqués avec un (<strong style="color:red;"> * </strong>) sont obligatoires.</i>
+                </p>
                 </div>
             </div>
         </div>
@@ -109,9 +119,9 @@ FORMULAIRE DE PAIEMENT
         <div class="row">
             
             <div class="form-group style-border col-12 mb-3">
-                <label for="type_donnateurs" class="text-white mb-2">Types de Donateurs</label>
+                <label for="type_donnateurs" class="text-white mb-2">Types de Donateurs<strong style="color:red;"> *</strong></label>
                 <select id="type_donnateurs" name="type_donnateurs" class="form-select" required>
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     <option value="Personne">Personne</option>
                     <option value="Organisation">Organisation</option>
                 </select> 
@@ -120,25 +130,25 @@ FORMULAIRE DE PAIEMENT
             <div class="form-group style-border col-12 mb-3" id="nom-prenom" style="display: none;">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="nom" class="text-white mb-2">Nom</label>
+                        <label for="nom" class="text-white mb-2">Nom<strong style="color:red;"> *</strong></label>
                         <input type="text" class="form-control" placeholder="Nom" name="nom" id="nom">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="prenom" class="text-white mb-2">Prénom</label>
+                        <label for="prenom" class="text-white mb-2">Prénom<strong style="color:red;"> *</strong></label>
                         <input type="text" class="form-control" placeholder="Prénom" name="prenom" id="prenom">
                     </div>
                 </div>
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="organisation" style="display: none;">
-                <label for="type_organisations" class="text-white mb-2">Nom de l'organisation</label>
+                <label for="type_organisations" class="text-white mb-2">Nom de l'organisation<strong style="color:red;"> *</strong></label>
                 <input type="text" class="form-control" placeholder="Nom Organisation" name="type_organisations" id="type_organisations">
             </div>
 
             <div class="form-group style-border col-md-6 mb-3">
-                <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire</label>  
+                <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire<strong style="color:red;"> *</strong></label>  
                 <select id="etablissementannees_id" name="etablissementannees_id" class="form-select" required>
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     @foreach($annees as $annee)
                         <option value="{{ $annee->id_etablissementannees }}">{{ $annee->anneeScolaire->annee_scolaire }}</option>
                     @endforeach
@@ -146,9 +156,9 @@ FORMULAIRE DE PAIEMENT
             </div>
 
             <div class="form-group style-border col-md-6 mb-3">
-                <label for="type_dons" class="text-white mb-2">Types de Dons</label>
+                <label for="type_dons" class="text-white mb-2">Types de Dons<strong style="color:red;"> *</strong></label>
                 <select id="type_dons" name="type_dons" class="form-select" required>
-                    <option value="">Sélectionner</option>
+                    <option value="">--Sélectionner--</option>
                     <option value="Vivres">Vivres</option>
                     <option value="Non-Vivres">Non-Vivres</option> 
                 </select>
@@ -157,11 +167,11 @@ FORMULAIRE DE PAIEMENT
             <div class="form-group style-border col-12 mb-3" id="vivres" style="display: none;">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="don_vivres" class="text-white mb-2">Nom du Don Vivres</label>
+                        <label for="don_vivres" class="text-white mb-2">Nom du Don Vivres<strong style="color:red;"> *</strong></label>
                         <input type="text" class="form-control" placeholder="Nom du Don Vivres" name="don_vivres" id="don_vivres">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="quantite_donvivres" class="text-white mb-2">Quantité</label>
+                        <label for="quantite_donvivres" class="text-white mb-2">Quantité<strong style="color:red;"> *</strong></label>
                         <input type="text" class="form-control" placeholder="Quantité" name="quantite_donvivres" id="quantite_donvivres">
                     </div>
                 </div>
@@ -169,18 +179,18 @@ FORMULAIRE DE PAIEMENT
 
             <div id="non-vivres" style="display: none;" class="col-12 p-0">
                 <div class="form-group style-border col-12 mb-3" id="modes-paiement-container">
-                    <label for="modes-paiement" class="text-white mb-2">Modes de Paiement</label>
+                    <label for="modes-paiement" class="text-white mb-2">Modes de Paiement<strong style="color:red;"> *</strong></label>
                     <select id="modes-paiement" name="modes_paiement" class="form-select">
-                        <option value="">Sélectionner</option>
+                        <option value="">--Sélectionner--</option>
                         <option value="Carte Bancaire">Carte Bancaire</option>
                         <option value="Virement bancaire">Virement bancaire</option>
                     </select>
                 </div>
 
                 <div class="form-group style-border col-12 mb-3" id="banque-container" style="display: none;">
-                    <label for="banque" class="text-white mb-2">Banque</label>
+                    <label for="banque" class="text-white mb-2">Banque<strong style="color:red;"> *</strong></label>
                     <select id="banque" name="banque" class="form-select">
-                        <option value="">Sélectionner</option>
+                        <option value="">--Sélectionner--</option>
                         <option value="BANQUE ATLANTIQUE">BANQUE ATLANTIQUE</option>
                         <option value="BICICI">BICICI</option>
                         <option value="CORIS BANK">CORIS BANK</option>
@@ -266,17 +276,17 @@ FORMULAIRE DE PAIEMENT
             </div>
 
             <div class="form-group style-border col-md-6 mb-3">
-                <label for="contacts" class="text-white mb-2">Contacts</label>
+                <label for="contacts" class="text-white mb-2">Contacts<strong style="color:red;"> *</strong></label>
                 <input type="text" class="form-control" placeholder="Contacts" name="contacts" id="contacts" required>
             </div>
 
             <div class="form-group style-border col-md-6 mb-3">
-                <label for="email" class="text-white mb-2">Email</label>
+                <label for="email" class="text-white mb-2">Email<strong style="color:red;"> *</strong></label>
                 <input type="email" class="form-control" placeholder="Email" name="email" id="email" required>
             </div>
 
             <div class="form-group style-border col-12 mb-3" id="montant-container" style="display: none;">
-                <label for="montant_attendu" class="text-white mb-2">Montant à payer</label>
+                <label for="montant_attendu" class="text-white mb-2">Montant à payer<strong style="color:red;"> *</strong></label>
                 <input type="number" class="form-control" id="montant_attendu" name="montant_attendu" placeholder="Montant Global">
 
                 <input type="hidden" id="modalite_final" name="modalite_final">

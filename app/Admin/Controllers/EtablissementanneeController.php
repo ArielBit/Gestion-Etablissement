@@ -27,7 +27,7 @@ class EtablissementanneeController extends AdminController
     {
         $grid = new Grid(new Etablissementannee());
 
-        //$grid->column('id_etablissementannees', __('Id etablissementannees'));
+        $grid->column('id_etablissementannees', __('Id'));
         $grid->column('etablissement.nom', __('Etablissement'));
         $grid->column('anneeScolaire.annee_scolaire', __('Année scolaire'));
         $grid->column('annee_periodique', __('Année Périodique'));
