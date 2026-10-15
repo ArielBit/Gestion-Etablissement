@@ -27,11 +27,9 @@ class EtablissementanneeController extends AdminController
     {
         $grid = new Grid(new Etablissementannee());
 
-        $grid->column('id_etablissementannees', __('Id'));
-        $grid->column('etablissement.nom', __('Etablissement'));
+        $grid->column('id_etablissementannees', __('ID'));
+        $grid->column('etablissement.nom_etablissement', __('Etablissement'));
         $grid->column('anneeScolaire.annee_scolaire', __('Année scolaire'));
-        $grid->column('annee_periodique', __('Année Périodique'));
-        $grid->column('type_anperiode', __('Type Année Périodique'));
         #AT
         /*$grid->column('created_at', __('Created at'))->display(function ($value) {
             return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
@@ -64,12 +62,6 @@ class EtablissementanneeController extends AdminController
         $show->field('id_etablissementannees', __('Id etablissementannees'));
         $show->field('etablissements_id', __('Etablissements id'));
         $show->field('annee_scolaires_id', __('Annee scolaires id'));
-        $show->field('created_at', __('Created at'));
-        $show->field('updated_at', __('Updated at'));
-        $show->field('deleted_at', __('Deleted at'));
-        $show->field('created_by', __('Created by'));
-        $show->field('updated_by', __('Updated by'));
-
         return $show;
     }
 
@@ -84,24 +76,11 @@ class EtablissementanneeController extends AdminController
 
         
         $form->select('etablissements_id', 'Établissement')
-    ->options(\App\Models\Etablissement::pluck('nom', 'id_etablissements'));
+    ->options(\App\Models\Etablissement::pluck('nom_etablissement', 'id_etablissements'));
         
 
        $form->select('annee_scolaires_id', 'Année scolaire')
-    ->options(\App\Models\AnneeScolaire::pluck('annee_scolaire', 'id_anneescolaires'));
-
-    $form->select('annee_periodique', __('Année Périodique')) ->options([
-        'Trimestre' => 'Trimestre',
-        'Semestre' => 'Semestre',]);
-
-        $form->select('type_anperiode', __('Type Année Périodique')) ->options([
-        '1er Trimestre' => '1er Trimestre ',
-        '2ème Trimestre' => '2ème Trimestre ',
-        '3ème Trimestre )' => '3ème Trimestre',
-        '1er Semestre' => '1er Semestre ',
-        '2ème Semestre' => '2ème Semestre ',
-        ]);
-        
+    ->options(\App\Models\AnneeScolaire::pluck('annee_scolaire', 'id_anneescolaires'));   
 
         return $form;
     }

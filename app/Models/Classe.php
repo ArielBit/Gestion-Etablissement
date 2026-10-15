@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $deleted_by
+ * @property string|null type_cl
  * 
  * @property Collection|Affectation[] $affectations
  * @property Collection|Apprenant[] $apprenants
@@ -41,10 +42,12 @@ class Classe extends Model
 	];
 
 	protected $fillable = [
+		'type_cl',
 		'nom_classe',
 		'created_by',
 		'updated_by',
-		'deleted_by'
+		'deleted_by',
+		
 	];
 
 	public function affectations()
@@ -63,4 +66,6 @@ class Classe extends Model
 	{
 		return $this->hasMany(Matiere::class, 'classes_id');
 	}
+
+
 }

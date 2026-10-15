@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Succès Inscription Apprenant | '. $etablissement->etablissement->nom)
+@section('title', 'Succès Inscription Apprenant | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 

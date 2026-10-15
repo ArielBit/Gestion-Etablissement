@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Inscriptions | '. $etablissement->etablissement->nom)
+@section('title', 'Inscriptions | '. $etablissement->etablissement->nom_etablissement)
 
 
 @section('content')
@@ -205,8 +205,8 @@
                                     <input type="text" class="form-control" placeholder="Lieu de Résidence" name="lieu_residence" id="lieu_residence" required>
                                 </div>
 
-                                <!-- Cursus -->
-                                <div class="form-group style-border col-md-6 mb-3">
+                                <!-- Cursus 
+                               <div class="form-group style-border col-md-6 mb-3">
                                     <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire<strong style="color:red;"> *</strong></label>
                                     <select id="etablissementannees_id" name="etablissementannees_id" class="form-select" required>
                                         <option value="">--Sélectionner--</option>
@@ -214,7 +214,7 @@
                                             <option value="{{ $annee->id_etablissementannees }}">{{ $annee->anneeScolaire->annee_scolaire }}</option>
                                         @endforeach
                                     </select>
-                                </div>
+                                </div>-->
 
 <!--========================================================================================================================================
 ================================================= CHOIX DES CLASSES========================================================

@@ -27,14 +27,8 @@ class EtablissementController extends AdminController
     {
         $grid = new Grid(new Etablissement());
 
-        //$grid->column('id_etablissements', __('Id etablissements'));
-        $grid->column('nom', __('Nom'));
-        $grid->column('date_creation', __('Date creation'))->display(function ($value) {
-            return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
-        });
-        
-        $grid->column('directeur', __('Directeur'));
-        $grid->column('localisation', __('Localisation'));
+        $grid->column('id_etablissements', __('ID'));
+        $grid->column('nom_etablissement', __('Nom'));
 
         #AT
        /*$grid->column('created_at', __('Created at'))->display(function ($value) {
@@ -65,17 +59,15 @@ class EtablissementController extends AdminController
     {
         $show = new Show(Etablissement::findOrFail($id));
 
-        $show->field('id_etablissements', __('Id etablissements'));
-        $show->field('nom', __('Nom'));
-        $show->field('date_creation', __('Date creation'));
-        $show->field('directeur', __('Directeur'));
-        $show->field('localisation', __('Localisation'));
-        $show->field('created_at', __('Created at'));
+        $show->field('id_etablissements', __('ID'));
+        $show->field('nom_etablissement', __('Nom'));
+        
+       /* $show->field('created_at', __('Created at'));
         $show->field('updated_at', __('Updated at'));
         $show->field('deleted_at', __('Deleted at'));
         $show->field('created_by', __('Created by'));
         $show->field('updated_by', __('Updated by'));
-        $show->field('deleted_by', __('Deleted by'));
+        $show->field('deleted_by', __('Deleted by'));*/
 
         return $show;
     }
@@ -89,12 +81,7 @@ class EtablissementController extends AdminController
     {
         $form = new Form(new Etablissement());
 
-        $form->text('nom', __('Nom'));
-        $form->date('date_creation', __('Date creation'))->default(date('Y-m-d'));
-        $form->text('directeur', __('Directeur'));
-        $form->text('localisation', __('Localisation'));
-       
-
+        $form->text('nom_etablissement', __('Nom')); 
         return $form;
     }
 }

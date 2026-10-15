@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Modifier mes Données - CPNTIC')
+@section('title', 'Modifier mes Données - CPNTIC |'.$etablissement->etablissement->nom_etablissement)
 
 @section('content')
 

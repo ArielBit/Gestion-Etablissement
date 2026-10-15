@@ -1,4 +1,6 @@
-@extends('layouts.app') {{-- Remplacez par votre layout principal --}}
+@extends('layouts.app') 
+
+@section('title', 'Rénitialisation de Mot de Passe | '.$etablissement->etablissement->nom_etablissement)
 
 @section('content')
 <div class="container py-5">

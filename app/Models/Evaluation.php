@@ -86,6 +86,11 @@ class Evaluation extends Model
 		return $this->belongsTo(Etablissementannee::class, 'etablissementannees_id');
 	}
 
+	public function periodeScolaire()
+	{
+		return $this->belongsTo(PeriodeScolaire::class, 'periodes_scolaires_id ');
+	}
+
 	public function matieres()
 	{
 		return $this->belongsTo(Matiere::class, 'matieres_id');

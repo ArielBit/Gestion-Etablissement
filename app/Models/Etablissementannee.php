@@ -4,7 +4,7 @@
  * Created by Reliese Model.
  */
 
-namespace App\Models; 
+namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
@@ -19,8 +19,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $annee_scolaires_id
  * @property string|null $annee_periodique
  * @property string|null $type_anperiode
- * @property Carbon|null $date_debut
- * @property Carbon|null $date_fin
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string|null $deleted_at
@@ -29,33 +27,28 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 
  * @property AnneeScolaire $annee_scolaire
  * @property Etablissement $etablissement
- * @property Collection|Administration[] $administrations
  * @property Collection|Affectation[] $affectations
  * @property Collection|Apprenant[] $apprenants
  * @property Collection|BulletinsMatiere[] $bulletins_matieres
  * @property Collection|Classeapprenant[] $classeapprenants
- * @property Collection|CompteUser[] $compte_users
  * @property Collection|Donnateur[] $donnateurs
  * @property Collection|Evaluation[] $evaluations
+ * @property Collection|Evenement[] $evenements
  * @property Collection|Paiement[] $paiements
+ * @property Collection|ParametresGlobaux[] $parametres_globauxes
+ * @property Collection|PeriodesScolaire[] $periodes_scolaires
  *
  * @package App\Models
  */
 class Etablissementannee extends Model
 {
-	#use SoftDeletes;
+	//use SoftDeletes;
 	protected $table = 'etablissementannees';
-	protected $primaryKey = 'id_etablissementannees';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
+	protected $primaryKey ='id_etablissementannees';
 
 	protected $casts = [
 		'etablissements_id' => 'int',
 		'annee_scolaires_id' => 'int',
-		'date_debut' => 'datetime',
-		'date_fin' => 'datetime',
 		'created_by' => 'int',
 		'updated_by' => 'int'
 	];
@@ -63,8 +56,6 @@ class Etablissementannee extends Model
 	protected $fillable = [
 		'annee_periodique',
 		'type_anperiode',
-		'date_debut',
-		'date_fin',
 		'created_by',
 		'updated_by'
 	];
@@ -122,5 +113,15 @@ class Etablissementannee extends Model
 	public function paiements()
 	{
 		return $this->hasMany(Paiement::class, 'etablissementannees_id');
+	}
+
+	public function parametres_globauxes()
+	{
+		return $this->hasMany(ParametresGlobaux::class, 'anneescolaire_id');
+	}
+
+	public function periodes_scolaires()
+	{
+		return $this->hasMany(PeriodesScolaire::class, 'anneescolaire_id');
 	}
 }

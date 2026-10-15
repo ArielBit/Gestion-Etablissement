@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'À Propos | '. $etablissement->etablissement->nom)
+@section('title', 'À Propos | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 

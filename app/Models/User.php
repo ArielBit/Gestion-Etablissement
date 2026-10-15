@@ -49,6 +49,7 @@ class User extends Authenticatable
 
 	protected $casts = [
 		'email_verified_at' => 'datetime',
+		'etablissement_id' => 'int',
 		'created_by' => 'int',
 		'updated_by' => 'int',
 		'deleted_by' => 'int'
@@ -70,7 +71,7 @@ class User extends Authenticatable
 		'role',
 		'created_by',
 		'updated_by',
-		'deleted_by'
+		'deleted_by',
 	];
 
 	public function apprenants()
@@ -87,4 +88,6 @@ class User extends Authenticatable
 	{
 		return $this->hasMany(Paiement::class, 'users_id', 'id_users');
 	}
+
+	
 }

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Paiements | '. $etablissement->etablissement->nom)
+@section('title', 'Paiements | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 <div class="breadcumb-wrapper position-relative " data-bg-src="assets/img/shape/breadcrumb-shep.png" style="margin-top: 50px;">

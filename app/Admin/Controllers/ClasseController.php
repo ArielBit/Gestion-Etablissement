@@ -27,8 +27,9 @@ class ClasseController extends AdminController
     {
         $grid = new Grid(new Classe());
 
-        //$grid->column('id_classes', __('Id classes'));
+        $grid->column('id_classes', __('ID'));
         $grid->column('nom_classe', __('Nom classe'));
+        $grid->column('type_cl', __('Type Période'));
         #AT
        /* $grid->column('created_at', __('Created at'))->display(function ($value) {
             return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
@@ -189,6 +190,12 @@ class ClasseController extends AdminController
     'Terminale G2-1 (Tle G2-1)' => 'Terminale G2-1 (Tle G2-1)',
     'Terminale G2-2 (Tle G2-2)' => 'Terminale G2-2 (Tle G2-2)',
     'Terminale G2-3 (Tle G2-3)' => 'Terminale G2-3 (Tle G2-3)',
+    ]);
+
+    $form->select('type_cl', __('Type Période'))
+    ->options([
+        'trimestre' => 'trimestre',
+        'semestre' => 'semestre'
     ]);
         
 

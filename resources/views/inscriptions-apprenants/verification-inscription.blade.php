@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Vérification de l\'Inscription | '. $etablissement->etablissement->nom)
+@section('title', 'Vérification de l\'Inscription | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 
@@ -108,7 +108,7 @@
 
                     <div class="col-md-6 mb-3">
                         <span class="text-white-50 d-block text-sm">Année Scolaire:</span>
-                        <strong class="text-white">{{ $annees->anneeScolaire->annee_scolaire }}</strong>
+                        <strong class="text-white">{{ $annee->anneeScolaire->annee_scolaire }}</strong>
                     </div>
 
                     <div class="col-md-6 mb-3">

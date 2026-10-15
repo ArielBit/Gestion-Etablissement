@@ -16,8 +16,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 
  * @property int $id_anneescolaires
  * @property string|null $annee_scolaire
- * @property string|null $date_debut
- * @property string|null $date_fin
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string|null $deleted_at
@@ -31,7 +29,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AnneeScolaire extends Model
 {
-	#use SoftDeletes;
+	//use SoftDeletes;
 	protected $table = 'annee_scolaires';
 	protected $primaryKey = 'id_anneescolaires';
 
@@ -43,8 +41,6 @@ class AnneeScolaire extends Model
 
 	protected $fillable = [
 		'annee_scolaire',
-		'date_debut',
-		'date_fin',
 		'created_by',
 		'updated_by',
 		'deleted_by'

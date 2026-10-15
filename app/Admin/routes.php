@@ -17,7 +17,7 @@ Route::group([
 ], function (Router $router) {
 
     $router->get('/', 'HomeController@index')->name('home');
-     $router->resource('administrations', AdministrationController::class);
+     //$router->resource('administrations', AdministrationController::class);
     $router->resource('affectations', AffectationController::class);
     $router->resource('annee-scolaires', AnneeScolaireController::class);
     $router->resource('apprenants', ApprenantController::class);
@@ -50,6 +50,8 @@ Route::group([
     $router->resource('inscriptions-pages', InscriptionsPageController::class);
      $router->resource('paiements-pages', PaiementsPageController::class);
       $router->resource('donateurs-pages', DonateursPageController::class);
+       $router->resource('parametres-globaux', ParametresGlobauxController::class);
+       $router->resource('periodes-scolaires', PeriodesScolaireController::class);
       //$router->resource('roles', RolesController::class);
       $router->resource('permissions', PermissionsController::class);
       //$router->resource('admin-users', AdminUsersController::class);
@@ -84,6 +86,9 @@ Route::group([
 
      Route::get('donnateurs/valider/{id}', [DonnateurButtonController::class, 'valider']);
      Route::get('donnateurs/rejeter/{id}', [DonnateurButtonController::class, 'rejeter']);
+
+     $router->get('api/trimestres-par-annee', 'ParametresGlobauxController@getTrimestresByAnnee');
+    $router->get('api/semestres-par-annee', 'ParametresGlobauxController@getSemestresByAnnee');
 
      // Utilisez $router->get au lieu de Route::get dans ce fichier
 $router->get('api/fonctions', function (Request $request) {

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Succès Paiement Scolarité | '. $etablissement->etablissement->nom)
+@section('title', 'Succès Paiement Scolarité | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 

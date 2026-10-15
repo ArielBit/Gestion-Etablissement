@@ -23,19 +23,23 @@ use App\Mail\MailDonateur;
 use App\Mail\MailInscriptions;
 use Illuminate\Support\Facades\Mail; 
 use Illuminate\Support\Facades\Log;
+use App\Models\ParametresGlobaux;
 
 
 
 class GeneralControllerController extends Controller
 {
-    public function accueil (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+   public function accueil() 
+    {
+        
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+ $user = Auth::user();
         $headers = Header::all();
         $footers = Footer::all();
-        $accueil =Accueil::findOrFail(1);
+        $accueil = Accueil::first();
 
-        return view('accueil', compact('headers','footers','accueil','etablissement'));
-
+        return view('accueil', compact('headers', 'footers', 'accueil', 'etablissement','user'));
     }
     
     public function header (){
@@ -52,8 +56,10 @@ class GeneralControllerController extends Controller
     }
 
     public function evenement (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
 
+         $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+        
         $headers = Header::all();
         $footers = Footer::all();
         $evenements = Evenement::findOrFail(1);
@@ -62,7 +68,10 @@ class GeneralControllerController extends Controller
     }
 
     public function inscription (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
         $annees = Etablissementannee::with('anneeScolaire')->get();
         $headers = Header::all();
          $footers = Footer::all();
@@ -75,7 +84,12 @@ class GeneralControllerController extends Controller
     //Soumission et vérification des données soumis
     public function verificationInscription (Request $request){
         //dd($request->all());
-         $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+         $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
+        $parametreGlobals = ParametresGlobaux::with('etablissementAnnee.anneeScolaire')->first();
+        $annee = $parametreGlobals?->etablissementAnnees  ?? Etablissementannee::with('anneeScolaire')->first();
+
          $headers = Header::all();
         $footers = Footer::all();
         $scolarites = Scolarite::all();
@@ -92,7 +106,7 @@ class GeneralControllerController extends Controller
             'lieu_naissance' => 'required|string',
             'age' => 'required|string',
             #anneée scolaire
-            'etablissementannees_id' => 'required',
+            //'etablissementannees_id' => 'required',
             'type_enseignement' => 'required|string',
             'cycle' => 'nullable|string',
             'niveau_etude_final' => 'nullable|string',
@@ -124,11 +138,21 @@ class GeneralControllerController extends Controller
         $data['niveau_etude'] = $request->niveau_etude_final;
         $data['type_niveau'] = $request->type_niveau_final;
         //Affichage de l'année
-        $annees = Etablissementannee::with('anneeScolaire')->findOrFail($data['etablissementannees_id']);
+        // 1. On récupère l'ID des paramètres globaux actifs
+        $parametresActifs = ParametresGlobaux::first();
+
+        if ($parametresActifs && $parametresActifs->anneescolaire_id) {
+            // 2. On injecte cet ID dans le tableau de données de l'apprenant
+            $data['anneescolaire_id'] = $parametresActifs->anneescolaire_id;
+        } else {
+            // Gestion d'erreur / sécurité si les paramètres globaux ne sont pas configurés
+            return back()->withErrors(['anneescolaire_id' => 'Veuillez configurer l\'année active dans les Paramètres Globaux avant d\'inscrire un apprenant.']);
+        }
+        //$annees = Etablissementannee::with('anneeScolaire')->findOrFail($data['etablissementannees_id']);
 
         //Stockage de la requête dans la session(cookies) de l'utilisateur
         session(['inscription_data'=> $data]);
-        return view('inscriptions-apprenants.verification-inscription', compact('data','headers','footers','annees','scolarites','etablissement'));
+        return view('inscriptions-apprenants.verification-inscription', compact('data','headers','footers','scolarites','etablissement','parametresActifs','annee'));
 
     }
 
@@ -149,6 +173,8 @@ class GeneralControllerController extends Controller
             ->with('error', 'Aucune donnée à confirmer.',compact('headers','footers','scolarites'));
     }
 
+    
+
     $apprenant =Apprenant::create([
         'users_id' => Auth::id(),
         'photo' => $data['photo'],
@@ -159,7 +185,7 @@ class GeneralControllerController extends Controller
         'date_naissance' => $data['date_naissance'],
         'lieu_naissance' => $data['lieu_naissance'],
         'age' => $data['age'],
-        'etablissementannees_id' => $data['etablissementannees_id'],
+        'etablissementannees_id' => $data['anneescolaire_id'],
         'type_enseignement' => $data['type_enseignement'],
         'cycle' => $data['cycle'],
         'niveau_etude' => $data['niveau_etude'],
@@ -189,7 +215,9 @@ class GeneralControllerController extends Controller
 
         //Page de Succès de l'insciption de l'Apprenant
         public function succesInscription ($id){
-            $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
 
         $succes= Apprenant::findOrFail($id);
         $headers = Header::all();
@@ -199,23 +227,30 @@ class GeneralControllerController extends Controller
         return view('inscriptions-apprenants.succes-inscription', compact('succes','headers','footers','scolarites','etablissement'));
     }
 
-    public function paiement (){
+    public function paiement() {
+   
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $parametreGlobals = ParametresGlobaux::with('etablissementAnnees.anneeScolaire')->first();
+    $etablissementAnneeId = $parametreGlobals?->anneescolaire_id;
 
-    
-    // Récupère uniquement les apprenants associés à l'utilisateur connecté
     $apprenant = Apprenant::where('users_id', Auth::id())
+        ->when($etablissementAnneeId, function ($query) use ($etablissementAnneeId) {
+            $query->where('etablissementannees_id', $etablissementAnneeId);
+        })
         ->withSum(['paiements' => function ($query) {
             $query->where('statut_paiement', 'VALIDE');
         }], 'montant_attendu')
         ->get();
 
-    $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+    $etablissement = $parametreGlobal?->etablissementAnnee ?? Etablissementannee::with('etablissement')->first();
+
     $headers = Header::all();
     $footers = Footer::all();
     $paiements = Paiement::findOrFail(68);
     $scolarites = Scolarite::all();
-        return view('recu.paiement' ,compact('apprenant','footers','headers','paiements','scolarites','etablissement'));
-    }
+
+    return view('recu.paiement', compact('apprenant', 'footers', 'headers', 'paiements', 'scolarites', 'etablissement'));
+}
 
     public function paiementScolarite(Request $request){
     //dd($request->all());
@@ -262,8 +297,11 @@ class GeneralControllerController extends Controller
 
     public function paiementAttente($id)
 {
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
      $headers = Header::all();
-        $footers = Footer::all();
+    $footers = Footer::all();
     $paiement = Paiement::findOrFail($id);
 
     if ($paiement->statut_paiement === 'VALIDE') {
@@ -276,14 +314,17 @@ class GeneralControllerController extends Controller
     }
     
 
-    return view('recu.paiement-attente', compact('paiement','headers','footers'));
+    return view('recu.paiement-attente', compact('paiement','headers','footers','etablissement'));
 }
 
     public function succesPaiement()
 {
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
     $headers = Header::all();
     $footers = Footer::all();
-    $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+    
 
 
     $recuId = session('recu_id');
@@ -324,11 +365,12 @@ class GeneralControllerController extends Controller
 }
 
     public function apropos (){
-            $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
 
         $footers = Footer::all();
-         $headers = Header::all();
-         $propos = APropo::all();
+        $headers = Header::all();
+        $propos = APropo::all();
 
         return view('apropos', compact('footers', 'headers','propos','etablissement'));
     }
@@ -354,11 +396,13 @@ public function recu($id)
 
 
     public function donnateur (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
         $headers = Header::all();
         $footers = Footer::all();
         $donateurs =Donnateur::findOrFail(27);
-    $annees =Etablissementannee::with('anneeScolaire')->get();
+        $annees =Etablissementannee::with('anneeScolaire')->get();
 
         return view('donnateur.donnateur', compact('annees','footers','headers','donateurs','etablissement'));
     }
@@ -379,10 +423,17 @@ public function recu($id)
     'modes_paiement' => 'nullable|string',
     'banque' => 'nullable|string',
     'montant_attendu' => 'nullable',
-    'etablissementannees_id' => 'required|exists:etablissementannees,id_etablissementannees',
+    //'etablissementannees_id' => 'required|exists:etablissementannees,id_etablissementannees',
     
     ]);
 
+            // 1. Récupération de l'ID actif depuis les paramètres globaux
+        $parametresActifs = ParametresGlobaux::first();
+        $etablissementAnneeId = $parametresActifs?->etablissementannees_id;
+
+        if (!$etablissementAnneeId) {
+            return back()->withErrors(['etablissementannees_id' => 'Veuillez configurer l\'année active dans les Paramètres Globaux avant d\'enregistrer un donateur.']);
+        }
 
     $donnateur= Donnateur::create([
 
@@ -400,7 +451,7 @@ public function recu($id)
     'montant_attendu' => $request->montant_attendu, 
     'date_paiement' => now(),
     'statut_paiement' => 'EN_ATTENTE',
-    'etablissementannees_id' => $request->etablissementannees_id,
+    'etablissementannees_id' => $etablissementAnneeId,
     'users_id' => Auth::id(),
     ]);
 
@@ -412,9 +463,12 @@ public function recu($id)
 
     public function donnateurAttente($id)
 {
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
     $donnateur = Donnateur::findOrFail($id);
-     $headers = Header::all();
-        $footers = Footer::all();
+    $headers = Header::all();
+    $footers = Footer::all();
 
     if ($donnateur->statut_paiement === 'VALIDE') {
 
@@ -427,11 +481,14 @@ public function recu($id)
     
     
 
-    return view('donnateur.paiement-donnateur-attente', compact('donnateur','headers','footers'));
+    return view('donnateur.paiement-donnateur-attente', compact('donnateur','headers','footers','etablissement'));
 }
 
 public function donnateurSucces (){
-    $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
     $headers = Header::all();
         $footers = Footer::all();
         
@@ -470,7 +527,9 @@ public function donnateurSucces (){
 
 
     public function creationcompte (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+
+     $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+     $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
 
         return view('comptes.creationcompte', compact('etablissement'));
     }
@@ -487,14 +546,22 @@ public function donnateurSucces (){
             'role' => 'required|in:parent,eleve,donateur',
         ]);
 
-        $user=User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
-            'email' => $request->email,
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-        ]);
+        // 1. Récupérer les paramètres globaux (ou la configuration active)
+    $parametre = ParametresGlobaux::with('etablissementAnnee')->first();
+
+    // 2. Extraire l'ID de l'établissement lié
+    $etablissementId = $parametre?->etablissementAnnee?->etablissements_id;
+
+    // 3. Créer l'utilisateur avec son etablissement_id
+    $user = User::create([
+        'nom' => $request->nom,
+        'prenom' => $request->prenom,
+        'email' => $request->email,
+        'username' => $request->username,
+        'password' => Hash::make($request->password),
+        'role' => $request->role,
+        'etablissement_id' => $etablissementId, 
+    ]);
 
         Auth::login($user);
 
@@ -507,7 +574,8 @@ public function donnateurSucces (){
     }
 
     public function connexion (){
-        $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
 
         return view('comptes.connexion',compact('etablissement'));
     }
@@ -546,11 +614,15 @@ public function donnateurSucces (){
 
     //Affichage du Compte Utilisateur
     public function compte()  {
-     $etablissement = Etablissementannee::with('etablissement')->findOrFail(6);
+        
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
 
         $headers = Header::all();
         $footers = Footer::all();
-        $etablissements = Etablissementannee::with('etablissement')->findOrFail(6);
+
+        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissements = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
         $annees = Etablissementannee::with('anneeScolaire')->findOrFail($etablissements->id_etablissementannees);
 
     if(Auth::check()){
@@ -564,11 +636,14 @@ public function modifie(){
 
     $headers = Header::all();
     $footers = Footer::all();
+    $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+    $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
     if(Auth::check()){
         $user = Auth::user();
     }
 
-    return view('comptes.modifiercompte', compact('user','headers','footers'));
+    return view('comptes.modifiercompte', compact('user','headers','footers','etablissement'));
 }
 
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Donnateurs | '. $etablissement->etablissement->nom)
+@section('title', 'Donnateurs | '. $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 
@@ -143,16 +143,6 @@ FORMULAIRE DE PAIEMENT
             <div class="form-group style-border col-12 mb-3" id="organisation" style="display: none;">
                 <label for="type_organisations" class="text-white mb-2">Nom de l'organisation<strong style="color:red;"> *</strong></label>
                 <input type="text" class="form-control" placeholder="Nom Organisation" name="type_organisations" id="type_organisations">
-            </div>
-
-            <div class="form-group style-border col-md-6 mb-3">
-                <label for="etablissementannees_id" class="text-white mb-2">Année Scolaire<strong style="color:red;"> *</strong></label>  
-                <select id="etablissementannees_id" name="etablissementannees_id" class="form-select" required>
-                    <option value="">--Sélectionner--</option>
-                    @foreach($annees as $annee)
-                        <option value="{{ $annee->id_etablissementannees }}">{{ $annee->anneeScolaire->annee_scolaire }}</option>
-                    @endforeach
-                </select>
             </div>
 
             <div class="form-group style-border col-md-6 mb-3">

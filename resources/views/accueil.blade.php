@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Accueil | Portail Institutionnel | ' . $etablissement->etablissement->nom)
+@section('title', 'Accueil | Portail Institutionnel | ' . $etablissement->etablissement->nom_etablissement)
 
 @section('content')
 
@@ -40,7 +40,7 @@
                         <div class="d-flex align-items-center justify-content-center bg-dark rounded-circle" style="width: 320px; height: 320px; background: #11141b !important; border: 2px solid rgba(255,255,255,0.05);">
                             <div class="text-center">
                                 <i class="fas fa-laptop-code display-1 text-warning mb-3"></i>
-                                <h3 class="text-white m-0 tracking-wider">{{ $etablissement->etablissement->nom }}</h3>
+                                <h3 class="text-white m-0 tracking-wider">{{ $etablissement->etablissement->nom_etablissement }}</h3>
                             </div>
                         </div>
                     </div>

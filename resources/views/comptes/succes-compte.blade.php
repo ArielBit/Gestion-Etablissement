@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Succès de la Création du Compte - CPNTIC')
+@section('title', 'Succès de la Création du Compte - CPNTIC | ' .$etablissement->etablissement->nom_etablissement)
 
 @section('content')
 
