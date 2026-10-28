@@ -3,102 +3,220 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Bulletin;
-use Encore\Admin\Form;
+use App\Models\BulletinsMatiere;
+use App\Models\Affectation;
+use App\Models\Professeur;
+use App\Models\Classeapprenant;
+use App\Models\ParametresGlobaux;
 use Encore\Admin\Controllers\AdminController;
-use Encore\Admin\Show;
 use Encore\Admin\Grid;
-use Carbon\Carbon;
+use Encore\Admin\Form;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class BulletinController extends AdminController
 {
-    /**
-     * Title for current resource.
-     *
-     * @var string
-     */
-    protected $title = 'Bulletin';
+    protected $title = 'Gestion des Bulletins Généraux';
 
-    /**
-     * Make a grid builder.
-     *
-     * @return Grid
-     */
     protected function grid()
     {
-        $grid = new Grid(new Bulletin());
+        // On se base sur les élèves de la classe ou un modèle global (ex: Classeapprenant filtré par classe)
+        $grid = new Grid(new Classeapprenant());
+        $grid->model()->with('apprenants');
 
-        //$grid->column('id_bulletins', __('Id bulletins'));
-        $grid->column('annee_periodiques', __('Annee periodiques'));
-        $grid->column('type_bulletin', __('Type bulletin'));
-        $grid->column('moyenne', __('Moyenne'));
-        $grid->column('rang', __('Rang'));
-        $grid->column('appreciation', __('Appreciation'));
-         #AT
-       /* $grid->column('created_at', __('Created at'))->display(function ($value) {
-            return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
-        });
-        $grid->column('updated_at', __('Updated at'))->display(function ($value) {
-            return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
-        });
-        $grid->column('deleted_at', __('Deleted at'))->display(function ($value) {
-            return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
-        });
+        $currentUser = Auth::guard('admin')->user();
+        $professeur = null;
+        $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+
+       // 1. Filtrage strict : Seul l'admin ou le professeur principal de la classe peut voir
+        if (!$isAdmin && $currentUser) {
+            $professeur = Professeur::where('matricule', $currentUser->username)->first();
+            if ($professeur) {
+                // Récupérer les classes où ce professeur est désigné comme "professeur_principal" dans la table affectations
+                $classeIdsPrincipal = \App\Models\Affectation::where('professeur_principal', $professeur->id_professeurs)
+                    ->pluck('classes_id');
+
+                if ($classeIdsPrincipal->isNotEmpty()) {
+                    $grid->model()->whereIn('classes_id', $classeIdsPrincipal);
+                } else {
+                    $grid->model()->whereRaw('1 = 0'); // Bloqué si pas prof principal
+                }
+            } else {
+                $grid->model()->whereRaw('1 = 0');
+            }
+        }
+
+        // 2. Traitement du filtre par classe
+        $selectedClassId = request('classes_id');
+        if ($selectedClassId) {
+            $grid->model()->where('classes_id', $selectedClassId);
+            
+            // Si prof, vérifier qu'il est bien pp de cette classe
+            if (!$isAdmin && $professeur) {
+                $estPP = \App\Models\Classe::where('id_classes', $selectedClassId)
+                    ->where(function($q) use ($professeur) {
+                        $q->where('professeurs_id', $professeur->id_professeurs)
+                          ->orWhere('professeur_principal_id', $professeur->id_professeurs);
+                    })->exists();
+                if (!$estPP) {
+                    $grid->model()->whereRaw('1 = 0');
+                }
+            }
+        } else {
+            // Si aucune classe n'est sélectionnée, on restreint pour éviter d'afficher toute l'école
+            $grid->model()->whereRaw('1 = 0');
+        }
+
+        // 3. Récupération des paramètres globaux (Établissement, Année, Période)
+        $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnnee = $parametreGlobal?->etablissementannee;
+        $etablissementAnnees = $parametreGlobal?->etablissementAnnees;
+        $nomEtablissement = optional($etablissementAnnee?->etablissement)->nom_etablissement ?? 'Établissement Scolaire';
+        $anneeScolaire = optional($etablissementAnnees?->anneeScolaire)->annee_scolaire ?? 'Année active';
+        $selectedClasse = $selectedClassId ? \App\Models\Classe::find($selectedClassId) : null;
         
-        #BY
-        $grid->column('created_by', __('Created by'));
-        $grid->column('updated_by', __('Updated by'));
-        $grid->column('deleted_by', __('Deleted by'));*/
-        $grid->column('bulletins_matieres_id', __('Bulletins matieres id'));
+        $nomPeriode = 'Non défini';
+        if ($selectedClasse) {
+            $typeClasse = strtolower($selectedClasse->type_cl ?? $selectedClasse->systeme ?? 'trimestre');
+            $periodeIdToFind = str_contains($typeClasse, 'semestre') 
+                ? ($parametreGlobal?->semestres_id ?? $parametreGlobal?->periodes_scolaires_id)
+                : ($parametreGlobal?->trimestres_id ?? $parametreGlobal?->periodes_scolaires_id);
+
+            if ($periodeIdToFind) {
+                $periodeObj = \App\Models\PeriodesScolaire::find($periodeIdToFind);
+                $nomPeriode = $periodeObj->nom_peri ?? $periodeObj->libelle ?? $periodeObj->titre ?? 'Période active';
+            }
+        }
+// 4. Barre d'outils avec grands titres et sélection de classes pour le Prof Principal
+        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode) {
+            
+            // Récupérer directement les classes distinctes liées au professeur
+            $classesQuery = \App\Models\Classe::query();
+            
+            if (!$isAdmin && $professeur) {
+                $classesQuery->whereHas('affectations', function($q) use ($professeur) {
+                    $q->where('professeurs_id', $professeur->id_professeurs)
+                      ->orWhere('professeur_principal', $professeur->id_professeurs);
+                });
+            }
+            
+            $classesAutorisees = $classesQuery->get();
+            $baseUrl = request()->url();
+
+            $html = '<div style="margin-bottom: 20px; background: #ffffff; padding: 15px; border-radius: 5px; border: 1px solid #e3e3e3; box-shadow: 0 1px 1px rgba(0,0,0,.05);">';
+            
+            $classeNom = $selectedClasse ? $selectedClasse->nom_classe : 'Veuillez sélectionner une classe';
+            $html .= '<h3 style="margin-top: 0; color: #3c8dbc; font-weight: bold; border-bottom: 2px solid #3c8dbc; padding-bottom: 8px;">🏫 ' . $nomEtablissement . '</h3>';
+            $html .= '<div style="display: flex; gap: 25px; font-size: 14px; margin-bottom: 15px; flex-wrap: wrap; color: #444;">';
+            $html .= '<span><strong>📅 Année :</strong> ' . $anneeScolaire . '</span>';
+            $html .= '<span><strong>📚 Classe :</strong> ' . $classeNom . '</span>';
+            $html .= '<span><strong>⏱ Période :</strong> ' . $nomPeriode . '</span>';
+            $html .= '</div>';
+
+            $html .= '<div class="btn-group" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">';
+            
+            foreach ($classesAutorisees as $cls) {
+                // Utilisation de la bonne clé primaire de la table classes (id_classes)
+                $count = \App\Models\Classeapprenant::where('classes_id', $cls->id_classes)->count();
+                $active = ($selectedClassId == $cls->id_classes) ? 'btn-primary' : 'btn-default';
+                $url = $baseUrl . '?classes_id=' . $cls->id_classes;
+
+                $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$cls->nom_classe} <span class='badge bg-gray'>{$count}</span></a>";
+            }
+            
+            $html .= '</div>';
+            $html .= '</div>';
+
+            $tools->append($html);
+        });
+
+        $grid->disableFilter();
+        $grid->disableCreateButton();
+        $grid->disableActions();
+
+        // 5. Colonne Élève (Nom, Prénom, Matricule)
+        $grid->column('id_classeapprenants', __('Élève'))->display(function () {
+            $app = $this->apprenants; // Récupère l'élève lié via l'instance courante
+            if (!$app) return '-';
+            
+            $nomComplet = trim(($app->nom ?? '') . ' ' . ($app->prenom ?? ''));
+            $matricule = $app->matricule ?? 'N/A';
+            
+            return "<strong>{$nomComplet}</strong><br><code style='font-size: 11px;'>Mat: {$matricule}</code>";
+        });
+
+        // 6. Colonne Moyenne Générale (Calculée à partir des bulletins matières)
+        $grid->column('moyenne_ generale', __('Moyenne Générale'))->display(function () {
+            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $this->id_classeapprenants)->get();
+            if ($bulletinsMatieres->isEmpty() || $bulletinsMatieres->avg('moyenne') === null) {
+                return '<span class="text-muted">-</span>';
+            }
+            $moyGen = round($bulletinsMatieres->avg('moyenne'), 2);
+            $color = $moyGen < 10 ? 'danger' : 'success';
+            return "<span class='badge bg-{$color}' style='font-size: 13px; padding: 5px 10px;'>{$moyGen} / 20</span>";
+        });
+
+        // 7. Colonne Rang Général
+        $grid->column('rang_general', __('Rang Général'))->display(function () {
+            // Logique de calcul du rang général de l'élève dans sa classe
+            $classeId = $this->classes_id;
+            $elevesClasse = Classeapprenant::where('classes_id', $classeId)->pluck('id_classeapprenants');
+            
+            $moyennesClasse = [];
+            foreach ($elevesClasse as $idApp) {
+                $bms = BulletinsMatiere::where('classeapprenants_id', $idApp)->get();
+                $moy = $bms->isNotEmpty() ? $bms->avg('moyenne') : null;
+                if ($moy !== null) {
+                    $moyennesClasse[$idApp] = round($moy, 2);
+                }
+            }
+
+            arsort($moyennesClasse);
+            $ranks = [];
+            $currRank = 1;
+            $prevScore = null;
+            $idx = 0;
+            foreach ($elevesClasse as $idApp => $score) {
+                // ... attribution des rangs
+            }
+            
+            // Pour faire simple ici, on récupère le bulletin global s'il existe, ou un tiret
+            $bulletin = Bulletin::whereHas('bulletins_matiere', fn($q) => $q->where('classeapprenants_id', $this->id_classeapprenants))->first();
+            $rang = $bulletin?->rang ?? '-';
+            return $rang !== '-' ? "<strong>{$rang}</strong>" : '<span class="text-muted">-</span>';
+        });
+
+        // 8. Bloc contenant l'ensemble des moyennes et rangs dans les différentes matières
+        $grid->column('details_matieres_bloc', __('Détails par Matière'))->display(function () {
+            $bulletinsMatieres = BulletinsMatiere::with('matiere')
+                ->where('classeapprenants_id', $this->id_classeapprenants)
+                ->get();
+
+            if ($bulletinsMatieres->isEmpty()) {
+                return '<span class="text-muted" style="font-style: italic;">Aucune note enregistrée</span>';
+            }
+
+            $html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            foreach ($bulletinsMatieres as $bm) {
+                $nomMatiere = optional($bm->matiere)->nom_matiere ?? 'Matière';
+                $moy = $bm->moyenne !== null ? $bm->moyenne . '/20' : '-';
+                $rang = $bm->rang ?? '-';
+                $app = $bm->appreciation ?? '-';
+                $badgeCol = is_numeric($bm->moyenne) && $bm->moyenne < 10 ? 'label-danger' : 'label-success';
+
+                $html .= "<div style='background: #f9f9f9; padding: 6px 10px; border-radius: 4px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;'>";
+                $html .= "<span><strong>{$nomMatiere}</strong></span>";
+                $html .= "<div>";
+                $html .= "<span class='label {$badgeCol}' style='margin-right: 5px;'>Moy: {$moy}</span>";
+                $html .= "<span class='label label-info' style='margin-right: 5px;'>Rang: {$rang}</span>";
+                $html .= "<span class='text-muted'>({$app})</span>";
+                $html .= "</div>";
+                $html .= "</div>";
+            }
+            $html .= '</div>';
+            return $html;
+        });
 
         return $grid;
-    }
-
-    /**
-     * Make a show builder.
-     *
-     * @param mixed $id
-     * @return Show
-     */
-    protected function detail($id)
-    {
-        $show = new Show(Bulletin::findOrFail($id));
-
-        $show->field('id_bulletins', __('Id bulletins'));
-        $show->field('annee_periodiques', __('Annee periodiques'));
-        $show->field('type_bulletin', __('Type bulletin'));
-        $show->field('moyenne', __('Moyenne'));
-        $show->field('rang', __('Rang'));
-        $show->field('appreciation', __('Appreciation'));
-        $show->field('created_at', __('Created at'));
-        $show->field('updated_at', __('Updated at'));
-        $show->field('deleted_at', __('Deleted at'));
-        $show->field('created_by', __('Created by'));
-        $show->field('updated_by', __('Updated by'));
-        $show->field('deleted_by', __('Deleted by'));
-        $show->field('bulletins_matieres_id', __('Bulletins matieres id'));
-
-        return $show;
-    }
-
-    /**
-     * Make a form builder.
-     *
-     * @return Form
-     */
-    protected function form()
-    {
-        $form = new Form(new Bulletin());
-
-        $form->text('annee_periodiques', __('Annee periodiques'));
-        $form->text('type_bulletin', __('Type bulletin'));
-        $form->text('moyenne', __('Moyenne'));
-        $form->text('rang', __('Rang'));
-        $form->text('appreciation', __('Appreciation'));
-        $form->number('created_by', __('Created by'));
-        $form->number('updated_by', __('Updated by'));
-        $form->number('deleted_by', __('Deleted by'));
-        $form->number('bulletins_matieres_id', __('Bulletins matieres id'));
-
-        return $form;
     }
 }

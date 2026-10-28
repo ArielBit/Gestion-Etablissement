@@ -19,8 +19,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $matieres_id
  * @property int $classeapprenants_id
  * @property int $etablissementannees_id
- * @property string|null $periode_numero
- * @property string|null $apprenants_id
  * @property string|null $moyenne
  * @property string|null $rang
  * @property string|null $appreciation
@@ -41,7 +39,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class BulletinsMatiere extends Model
 {
-	#use SoftDeletes;
+	//use SoftDeletes;
 	protected $table = 'bulletins_matieres';
 	protected $primaryKey = 'id_bulletinsmatieres';
 
@@ -60,8 +58,6 @@ class BulletinsMatiere extends Model
 		'matieres_id',
 		'classeapprenants_id',
 		'etablissementannees_id',
-		'periode_numero',
-		'apprenants_id',
 		'moyenne',
 		'rang',
 		'appreciation',
@@ -75,17 +71,17 @@ class BulletinsMatiere extends Model
 		return $this->belongsTo(Classeapprenant::class, 'classeapprenants_id');
 	}
 
-	public function etablissementannees()
+	public function etablissementannee()
 	{
 		return $this->belongsTo(Etablissementannee::class, 'etablissementannees_id');
 	}
 
-	public function evaluations()
+	public function evaluation()
 	{
 		return $this->belongsTo(Evaluation::class, 'evaluations_id');
 	}
 
-	public function matieres()
+	public function matiere()
 	{
 		return $this->belongsTo(Matiere::class, 'matieres_id');
 	}

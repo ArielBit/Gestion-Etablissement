@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $classes_id
  * @property int $educateurs_id	
  * @property int $etablissementannees_id
+ * @property int $professeur_principal 
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string|null $deleted_at
@@ -47,6 +48,7 @@ class Affectation extends Model
 		'classes_id' => 'int',
 		'educateurs_id' => 'int',
 		'etablissementannees_id' => 'int',
+		'professeur_principal' => 'int',
 		'created_by' => 'int',
 		'updated_by' => 'int',
 		'deleted_by' => 'int'
@@ -73,6 +75,11 @@ class Affectation extends Model
 	{
 		return $this->belongsTo(Professeur::class, 'professeurs_id');
 	}
+
+	public function professeurPrincipal()
+	{
+		return $this->belongsTo(Professeur::class, 'professeur_principal');
+	} 
 
 	public function educateurs()
 	{

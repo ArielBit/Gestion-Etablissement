@@ -3,7 +3,8 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Affectation;
-
+use App\Models\ParametresGlobaux;
+use App\Models\EtablissementAnnee;
 use Encore\Admin\Form;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Show;
@@ -56,6 +57,14 @@ $grid->column('educateur', __('Educateur'))->display(function () {
             optional($this->etablissementannee)->anneeScolaire
         )->annee_scolaire;
     });
+
+    $grid->column('professeur_principals', __('Professeur Principal'))->display(function () {
+    $personnel = optional($this->professeurPrincipal)->personnel;
+
+    return $personnel
+        ? $personnel->nom . ' ' . $personnel->prenom
+        : '-';
+});
          #AT
         /*$grid->column('created_at', __('Created at'))->display(function ($value) {
             return !empty($value)? Carbon::parse($value)->isoFormat('DD MMMM YYYY'):"Date inconnue";
@@ -108,58 +117,58 @@ $grid->column('educateur', __('Educateur'))->display(function () {
         $form = new Form(new Affectation());
 
         $form->select('professeurs_id', 'Professeurs')
-    ->options(
-        \App\Models\Professeur::with('personnel')
-            ->get()
-            ->mapWithKeys(function ($item) {
-                // Sécurité avec optional() ou nullsafe operator PHP 8 (?->)
-                $nom = optional($item->personnel)->nom ?? '';
-                $prenom = optional($item->personnel)->prenom ?? '';
+            ->options(
+                \App\Models\Professeur::with('personnel')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        $nom = optional($item->personnel)->nom ?? '';
+                        $prenom = optional($item->personnel)->prenom ?? '';
+                        return [
+                            $item->id_professeurs => trim($nom . ' ' . $prenom)
+                        ];
+                    })
+            )
+            ->rules('required');
 
-                return [
-                    $item->id_professeurs => trim($nom . ' ' . $prenom)
-                ];
-            })
-    )
-    ->rules('required');
-
-    $form->select('educateurs_id', __('Educateur'))
-    ->options(
-        \App\Models\Educateur::with('personnel')
-            ->get()
-            ->mapWithKeys(function ($item) {
-                // Sécurité avec optional() ou nullsafe operator PHP 8 (?->)
-                $nom = optional($item->personnel)->nom ?? '';
-                $prenom = optional($item->personnel)->prenom ?? '';
-
-                return [
-                    $item->id_educateurs => trim($nom . ' ' . $prenom)
-                ];
-            })
-    )
-    ->rules('required');
-
+        $form->select('educateurs_id', __('Educateur'))
+            ->options(
+                \App\Models\Educateur::with('personnel')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        $nom = optional($item->personnel)->nom ?? '';
+                        $prenom = optional($item->personnel)->prenom ?? '';
+                        return [
+                            $item->id_educateurs => trim($nom . ' ' . $prenom)
+                        ];
+                    })
+            )
+            ->rules('required');
 
         $form->select('matieres_id', 'Matières')
-    ->options(\App\Models\Matiere::pluck('nom_matiere', 'id_matieres'));
+            ->options(\App\Models\Matiere::pluck('nom_matiere', 'id_matieres'));
 
         $form->select('classes_id', 'Classes')
-    ->options(\App\Models\Classe::pluck('nom_classe', 'id_classes'));
+            ->options(\App\Models\Classe::pluck('nom_classe', 'id_classes'));
 
-        $form->select('etablissementannees_id', 'Année scolaire')
-    ->options(
-        \App\Models\EtablissementAnnee::with('anneeScolaire')
-            ->get()
-            ->mapWithKeys(function ($item) {
-                return [
-                    $item->id_etablissementannees =>
-                        optional($item->anneeScolaire)->annee_scolaire
-                ];
-            }) 
-    );
-        /*$form->number('created_by', __('Created by'));
-        $form->number('updated_by', __('Updated by'));
-        $form->number('deleted_by', __('Deleted by'));*/
+        // Récupérer l'ID de l'année active depuis les paramètres globaux et l'insérer automatiquement de façon masquée
+        $parametreGlobal = \App\Models\ParametresGlobaux::first();
+        $activeYearId = $parametreGlobal?->anneescolaire_id;
+
+        $form->hidden('etablissementannees_id')->default($activeYearId);
+
+        $form->select('professeur_principal', 'Professeur Principal')
+            ->options(
+                \App\Models\Professeur::with('personnel')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        $nom = optional($item->personnel)->nom ?? '';
+                        $prenom = optional($item->personnel)->prenom ?? '';
+                        return [
+                            $item->id_professeurs => trim($nom . ' ' . $prenom)
+                        ];
+                    })
+            )
+            ->rules('required');
 
         return $form;
     }

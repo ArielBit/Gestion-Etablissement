@@ -6,15 +6,22 @@ use App\Admin\Controllers\PersonnelController;
 use App\Admin\ControllersProfEducController;
 use App\Admin\Controllers\PaiementButtonController;
 use App\Admin\Controllers\DonnateurButtonController;
+use App\Admin\Controllers\BulletinsMatiereController;
+use App\Admin\Controllers\Evaluation;
 
 Admin::routes();
-
 Route::group([
     'prefix'        => config('admin.route.prefix'),
     'namespace'     => config('admin.route.namespace'),
     'middleware'    => config('admin.route.middleware'),
     'as'            => config('admin.route.prefix') . '.',
 ], function (Router $router) {
+    //Notes evaluations
+    $router->get('evaluations/saisie-globale', 'EvaluationController@saisieGlobale');
+    $router->post('evaluations/saisie-globale', 'EvaluationController@storeSaisieGlobale');
+    $router->get('bulletins-matieres/calculer', [BulletinsMatiereController::class, 'calculerMoyennes']);
+    $router->resource('bulletins-matieres', BulletinsMatiereController::class);
+    $router->resource('evaluations', EvaluationController::class);
 
     $router->get('/', 'HomeController@index')->name('home');
      //$router->resource('administrations', AdministrationController::class);
@@ -64,6 +71,10 @@ Route::group([
       $router->resource('vigiles', VigileController::class);
         $router->resource('personnels-nettoyages', PersonnelsNettoyageController::class);
 
+         
+          
+          
+
         /*
         **EDUCATEUR
         */
@@ -80,6 +91,7 @@ Route::group([
 
           //Global
           $router->resource('matiere-classes', MatiereClasseController2::class);
+
      
      Route::get('paiements/valider/{id}', [PaiementButtonController::class, 'valider']);
      Route::get('paiements/rejeter/{id}', [PaiementButtonController::class, 'rejeter']);

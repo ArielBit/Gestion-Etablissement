@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Class Bulletin
  * 
  * @property int $id_bulletins
- * @property string|null $annee_periodiques
  * @property string|null $type_bulletin
  * @property string|null $moyenne
  * @property string|null $rang
@@ -33,7 +32,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Bulletin extends Model
 {
-	#use SoftDeletes;
+	use SoftDeletes;
 	protected $table = 'bulletins';
 	protected $primaryKey = 'id_bulletins';
 
@@ -45,7 +44,6 @@ class Bulletin extends Model
 	];
 
 	protected $fillable = [
-		'annee_periodiques',
 		'type_bulletin',
 		'moyenne',
 		'rang',
