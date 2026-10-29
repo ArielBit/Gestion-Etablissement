@@ -34,7 +34,7 @@ class GeneralControllerController extends Controller
         
         $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
         $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
- $user = Auth::user();
+         $user = Auth::user();
         $headers = Header::all();
         $footers = Footer::all();
         $accueil = Accueil::first();
@@ -614,22 +614,26 @@ public function donnateurSucces (){
 
     //Affichage du Compte Utilisateur
     public function compte()  {
-        
-        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
-        $etablissement = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+       $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
+        $etablissements = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
+
+      // Récupérer l'apprenant connecté (par exemple via son ID utilisateur)
+    $apprenant = Apprenant::with([
+        'etablissementannee.etablissement', 
+        'etablissementannee.anneeScolaire'
+    ])->where('users_id', Auth::id())->first();
 
         $headers = Header::all();
         $footers = Footer::all();
 
-        $parametreGlobal = ParametresGlobaux::with('etablissementAnnee.etablissement')->first();
-        $etablissements = $parametreGlobal?->etablissementAnnee  ?? Etablissementannee::with('etablissement')->first();
-        $annees = Etablissementannee::with('anneeScolaire')->findOrFail($etablissements->id_etablissementannees);
+        // Récupération sécurisée du libellé de l'année scolaire
+       //$annees = $etablissementAnnee?->anneeScolaire?->annee_scolaire ?? 'Non définie';
 
     if(Auth::check()){
         $user = Auth::user()->load(['apprenants', 'paiements', 'donnateurs']);
     }
 
-    return view('comptes.compteuser', compact('user','headers', 'footers','etablissements','annees','etablissement'));
+    return view('comptes.compteuser', compact('user','headers', 'footers','apprenant','etablissements'));
 }
 //Affichage de la Rubrique Modifier
 public function modifie(){

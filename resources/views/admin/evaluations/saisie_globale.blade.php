@@ -52,8 +52,8 @@
             </div>
 
             <hr>
-            <h4>Attribution des notes par groupes d'élèves</h4>
-            <p class="text-muted">Sélectionnez les élèves concernés par une note, puis ajoutez un groupe si un autre groupe d'élèves a une note différente.</p>
+            <h4>Attribution des notes spécifiques et observations par groupes d'élèves</h4>
+            <p class="text-muted">Sélectionnez les élèves concernés, attribuez leur note spécifique et leur observation, puis ajoutez un autre groupe si nécessaire.</p>
 
             <!-- Conteneur dynamique des blocs de notes -->
             <div id="groupes-container">
@@ -61,8 +61,8 @@
                 <div class="panel panel-default groupe-block" style="padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
                     <div class="row">
                         <div class="col-sm-4">
-                            <label>Note attribuée (/20) <span class="text-red">*</span></label>
-                            <input type="number" step="0.25" min="0" max="20" name="notes_groupes[0][note]" class="form-control" placeholder="Ex: 14.5" required>
+                            <label>Note Spécifique (/20) <span class="text-red">*</span></label>
+                            <input type="number" step="0.25" min="0" max="20" name="notes_groupes[0][note_specifique]" class="form-control" placeholder="Ex: 14.5" required>
                         </div>
                         <div class="col-sm-7">
                             <label>Élèves concernés <span class="text-red">*</span></label>
@@ -74,18 +74,17 @@
                             <button type="button" class="btn btn-danger btn-sm btn-supprimer-groupe" style="display:none;"><i class="fa fa-trash"></i></button>
                         </div>
                     </div>
+                    <!-- Champ observation propre à chaque groupe -->
+                    <div class="row" style="margin-top: 10px;">
+                        <div class="col-sm-11">
+                            <label>Observation pour ce groupe</label>
+                            <input type="text" name="notes_groupes[0][observation]" class="form-control" placeholder="Remarque particulière pour ce groupe...">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <button type="button" id="btn-ajouter-groupe" class="btn btn-default btn-sm"><i class="fa fa-plus"></i> Ajouter un autre groupe de note</button>
-
-            <hr>
-            <div class="form-group">
-                <label class="col-sm-2 control-label">Observations</label>
-                <div class="col-sm-8">
-                    <textarea name="observations" class="form-control" rows="2"></textarea>
-                </div>
-            </div>
+            <button type="button" id="btn-ajouter-groupe" class="btn btn-default btn-sm"><i class="fa fa-plus"></i> Ajouter un autre groupe</button>
         </div>
 
         <div class="box-footer">
@@ -130,7 +129,8 @@
         
         // Détruire select2 sur le bloc cloné avant de cloner pour éviter les bugs d'affichage
         var oldSelect = premierBloc.querySelector('.select2-eleves');
-        if ($(oldSelect).hasClass('select2-hidden-accessible')) {$(oldSelect).select2('destroy');
+        if ($(oldSelect).hasClass('select2-hidden-accessible')) {
+            $(oldSelect).select2('destroy');
         }
 
         var nouveauBloc = premierBloc.cloneNode(true);
@@ -138,13 +138,24 @@
         // Réinitialiser select2 sur l'ancien bloc
         $(oldSelect).select2();
 
-        // Mettre à jour les noms des inputs du nouveau bloc
-        nouveauBloc.querySelector('input[type="number"]').name = `notes_groupes[${groupeIndex}][note]`;
-        nouveauBloc.querySelector('input[type="number"]').value = '';
+        // Mettre à jour le nom et vider la note spécifique du nouveau bloc
+        var inputNote = nouveauBloc.querySelector('input[name*="[note_specifique]"]');
+        if (inputNote) {
+            inputNote.name = `notes_groupes[${groupeIndex}][note_specifique]`;
+            inputNote.value = '';
+        }
         
+        // Mettre à jour le select des élèves du nouveau bloc
         var selectEleves = nouveauBloc.querySelector('select');
         selectEleves.name = `notes_groupes[${groupeIndex}][eleve_ids][]`;
         selectEleves.innerHTML = ''; // Vider
+
+        // Mettre à jour le nom et vider le champ observation du nouveau bloc
+        var inputObservation = nouveauBloc.querySelector('input[name*="[observation]"]');
+        if (inputObservation) {
+            inputObservation.name = `notes_groupes[${groupeIndex}][observation]`;
+            inputObservation.value = '';
+        }
 
         // Remplir le select du nouveau bloc si une classe est déjà choisie
         var affectationId = document.getElementById('affectations_id').value;
@@ -163,9 +174,10 @@
     });
 
     $(document).ready(function() {
-        $('.select2').select2();$('.select2-eleves').select2();
+        $('.select2').select2();
+        $('.select2-eleves').select2();
 
-        // Si une classe est déjà pré-sélectionnée (via le bouton de la grille), charger ses élèves immédiatement
+        // Si une classe est déjà pré-sélectionnée, charger ses élèves immédiatement
         var affectationSelect = document.getElementById('affectations_id');
         if (affectationSelect && affectationSelect.value) {
             var event = new Event('change');

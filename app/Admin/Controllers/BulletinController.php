@@ -16,11 +16,8 @@ use Illuminate\Http\Request;
 
 class BulletinController extends AdminController
 {
-    protected $title = 'Gestion des Bulletins Généraux';
-
     protected function grid()
     {
-        // On se base sur les élèves de la classe ou un modèle global (ex: Classeapprenant filtré par classe)
         $grid = new Grid(new Classeapprenant());
         $grid->model()->with('apprenants');
 
@@ -28,18 +25,18 @@ class BulletinController extends AdminController
         $professeur = null;
         $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
 
-       // 1. Filtrage strict : Seul l'admin ou le professeur principal de la classe peut voir
+        // 1. Filtrage strict : Seul l'admin ou le professeur principal de la classe peut voir
         if (!$isAdmin && $currentUser) {
             $professeur = Professeur::where('matricule', $currentUser->username)->first();
             if ($professeur) {
-                // Récupérer les classes où ce professeur est désigné comme "professeur_principal" dans la table affectations
+                // Récupérer uniquement les classes où ce professeur est désigné comme "professeur_principal" dans la table affectations
                 $classeIdsPrincipal = \App\Models\Affectation::where('professeur_principal', $professeur->id_professeurs)
                     ->pluck('classes_id');
 
                 if ($classeIdsPrincipal->isNotEmpty()) {
                     $grid->model()->whereIn('classes_id', $classeIdsPrincipal);
                 } else {
-                    $grid->model()->whereRaw('1 = 0'); // Bloqué si pas prof principal
+                    $grid->model()->whereRaw('1 = 0'); // Bloqué si pas professeur principal
                 }
             } else {
                 $grid->model()->whereRaw('1 = 0');
@@ -51,13 +48,12 @@ class BulletinController extends AdminController
         if ($selectedClassId) {
             $grid->model()->where('classes_id', $selectedClassId);
             
-            // Si prof, vérifier qu'il est bien pp de cette classe
+            // Si prof, vérifier qu'il est bien professeur principal de cette classe
             if (!$isAdmin && $professeur) {
-                $estPP = \App\Models\Classe::where('id_classes', $selectedClassId)
-                    ->where(function($q) use ($professeur) {
-                        $q->where('professeurs_id', $professeur->id_professeurs)
-                          ->orWhere('professeur_principal_id', $professeur->id_professeurs);
-                    })->exists();
+                $estPP = \App\Models\Affectation::where('classes_id', $selectedClassId)
+                    ->where('professeur_principal', $professeur->id_professeurs)
+                    ->exists();
+
                 if (!$estPP) {
                     $grid->model()->whereRaw('1 = 0');
                 }
@@ -87,16 +83,16 @@ class BulletinController extends AdminController
                 $nomPeriode = $periodeObj->nom_peri ?? $periodeObj->libelle ?? $periodeObj->titre ?? 'Période active';
             }
         }
-// 4. Barre d'outils avec grands titres et sélection de classes pour le Prof Principal
+
+        // 4. Barre d'outils avec grands titres et sélection de classes pour le Prof Principal
         $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode) {
             
-            // Récupérer directement les classes distinctes liées au professeur
+            // Récupérer uniquement les classes où ce professeur est professeur principal
             $classesQuery = \App\Models\Classe::query();
             
             if (!$isAdmin && $professeur) {
                 $classesQuery->whereHas('affectations', function($q) use ($professeur) {
-                    $q->where('professeurs_id', $professeur->id_professeurs)
-                      ->orWhere('professeur_principal', $professeur->id_professeurs);
+                    $q->where('professeur_principal', $professeur->id_professeurs);
                 });
             }
             
@@ -115,13 +111,17 @@ class BulletinController extends AdminController
 
             $html .= '<div class="btn-group" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">';
             
-            foreach ($classesAutorisees as $cls) {
-                // Utilisation de la bonne clé primaire de la table classes (id_classes)
-                $count = \App\Models\Classeapprenant::where('classes_id', $cls->id_classes)->count();
-                $active = ($selectedClassId == $cls->id_classes) ? 'btn-primary' : 'btn-default';
-                $url = $baseUrl . '?classes_id=' . $cls->id_classes;
+            // Vérification s'il y a des classes attribuées en tant que Professeur Principal
+            if ($classesAutorisees->isNotEmpty()) {
+                foreach ($classesAutorisees as $cls) {
+                    $count = \App\Models\Classeapprenant::where('classes_id', $cls->id_classes)->count();
+                    $active = ($selectedClassId == $cls->id_classes) ? 'btn-primary' : 'btn-default';
+                    $url = $baseUrl . '?classes_id=' . $cls->id_classes;
 
-                $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$cls->nom_classe} <span class='badge bg-gray'>{$count}</span></a>";
+                    $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$cls->nom_classe} <span class='badge bg-gray'>{$count}</span></a>";
+                }
+            } else {
+                $html .= '<span class="text-danger" style="font-weight: bold; font-style: italic;"><i class="fa fa-exclamation-triangle"></i> Aucune classe attribuée en tant que professeur principal.</span>';
             }
             
             $html .= '</div>';
@@ -129,6 +129,7 @@ class BulletinController extends AdminController
 
             $tools->append($html);
         });
+    
 
         $grid->disableFilter();
         $grid->disableCreateButton();

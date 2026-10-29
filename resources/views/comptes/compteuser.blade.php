@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Mon Compte | '.$etablissement->etablissement->nom_etablissement)
+@section('title', 'Mon Compte | ' . ($etablissements?->etablissement?->nom_etablissement ?? 'Error'))
 
 @section('content')
 
@@ -190,7 +190,7 @@
 
                                             <div class="col-6 px-3 d-flex flex-column justify-content-between">
                                                 <div class="d-flex justify-content-between align-items-center mb-2 line-meta">
-                                                    <div><span class="meta-lbl">Année Scolaire :</span> <span class="meta-val fw-bold text-dark">{{ $annees->anneeScolaire->annee_scolaire }}</span></div>
+                                                    <div><span class="meta-lbl">Année Scolaire :</span> <span class="meta-val fw-bold text-dark">{{ $apprenant?->etablissementannee?->anneeScolaire?->annee_scolaire ?? 'Non définie' }}</span></div>
                                                     <div><span class="meta-lbl">Matricule :</span> <span class="meta-val fw-bold text-dark">{{ $apprenant->matricule ?? 'En cours...' }}</span></div>
                                                 </div>
 
@@ -239,7 +239,7 @@
                                             <div class="col-3 ps-3 border-start border-light-subtle d-flex flex-column justify-content-between text-end">
                                                 <div class="h-urgency p-1 text-center text-dark">
                                                     <div class="u-lbl">En cas d'urgence</div>
-                                                    <div class="u-val fw-bold font-monospace">{{ $apprenant->tel_pere ?? '0708741273' }}</div>
+                                                    <div class="u-val fw-bold font-monospace">{{ $apprenant->tel_pere ?? 'Rien' }}</div>
                                                 </div>
                                                 <div class="text-center my-1 text-dark opacity-75">
                                                     <i class="fas fa-chair fa-lg"></i> <i class="fas fa-book-reader fa-lg"></i>
@@ -252,7 +252,7 @@
                                         </div>
                                     </div>
                                     <div class="cni-h-green px-3 py-2 text-center text-uppercase fw-bold">
-                                        000{{ $apprenant->id_apprenants }} : {{ $etablissements->etablissement->nom }}
+                                        000{{ $apprenant->id_apprenants }} : {{ $apprenant?->etablissementannee?->etablissement?->nom_etablissement ?? 'Établissement non défini' }}
                                     </div>
                                 </div>
                             </div>

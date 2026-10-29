@@ -271,7 +271,7 @@ class BulletinsMatiereController extends AdminController
                 }
                 
                 // Formatage : "1er" pour le premier, sinon "2e", "3e", etc.
-                $suffixe = ($currentRank == 1) ? 'er' : 'e';
+                $suffixe = ($currentRank == 1) ? 'er' : 'ème';
                 $ranks[$eleveId] = $currentRank . $suffixe;
                 
                 $previousScore = $score;
@@ -297,14 +297,24 @@ class BulletinsMatiereController extends AdminController
                     }
                 }
 
+                    // Récupérer une évaluation valide ou ignorer/gérer le cas si aucune n'existe
+                $evaluationRef = Evaluation::where('affectations_id', $aff->id_affectations)->first();
+
+                // Si l'évaluation est obligatoire en base mais qu'il n'y en a pas, 
+                // tu peux soit créer une ligne par défaut, soit sauter l'enregistrement pour cette matière :
+                if (!$evaluationRef) {
+                    continue; // Passe à la matière suivante si aucune évaluation n'existe
+                }
+
                 BulletinsMatiere::updateOrCreate(
                     [
                         'matieres_id' => $aff->matieres_id,
                         'classeapprenants_id' => $app->id_classeapprenants,
                         'etablissementannees_id' => $etablissementAnneeId,
+                        // Si evaluations_id fait partie de la clé unique de recherche :
+                        'evaluations_id' => $evaluationRef->id_evaluations, 
                     ],
                     [
-                        'evaluations_id' => Evaluation::where('affectations_id', $aff->id_affectations)->first()?->id_evaluations,
                         'moyenne' => $moy,
                         'rang' => $rang,
                         'appreciation' => $appreciation,

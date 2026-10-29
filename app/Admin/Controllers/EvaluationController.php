@@ -359,22 +359,22 @@ class EvaluationController extends AdminController
     /**
      * Traite l'enregistrement global des notes soumises
      */
-   public function storeSaisieGlobale(Request $request)
+  public function storeSaisieGlobale(Request $request)
     {
+        $currentUser = Auth::guard('admin')->user();
+        $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
 
-    $currentUser = Auth::guard('admin')->user();
-$isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+        if (!$isAdmin) {
+            $professeur = Professeur::where('matricule', $currentUser->username)->first();
+            $appartientAuProf = Affectation::where('id_affectations', $request->affectations_id)
+                ->where('professeurs_id', $professeur?->id_professeurs)
+                ->exists();
 
-if (!$isAdmin) {
-    $professeur = Professeur::where('matricule', $currentUser->username)->first();
-    $appartientAuProf = Affectation::where('id_affectations', $request->affectations_id)
-        ->where('professeurs_id', $professeur?->id_professeurs)
-        ->exists();
+            if (!$appartientAuProf) {
+                abort(403, 'Action non autorisée sur cette affectation.');
+            }
+        }
 
-    if (!$appartientAuProf) {
-        abort(403, 'Action non autorisée sur cette affectation.');
-    }
-}
         $request->validate([
             'affectations_id' => 'required|exists:affectations,id_affectations',
             'nom_evaluation' => 'required|string',
@@ -396,24 +396,25 @@ if (!$isAdmin) {
             return back()->withInput();
         }
 
-        // Parcours des groupes de notes définis par le professeur
+        // Parcours des groupes de notes spécifiques définis par le professeur
         foreach ($request->notes_groupes as $groupe) {
-            $note = $groupe['note'] ?? null;
+            $noteSpecifique = $groupe['note_specifique'] ?? null;
             $eleveIds = $groupe['eleve_ids'] ?? [];
+            $observationGroupe = $groupe['observation'] ?? null; // Récupération de l'observation du groupe
 
-            if ($note !== null && !empty($eleveIds)) {
+            if ($noteSpecifique !== null && !empty($eleveIds)) {
                 foreach ($eleveIds as $classeApprenantId) {
                     Evaluation::create([
                         'affectations_id' => $request->affectations_id,
                         'etablissementannees_id' => $etablissementAnneeId,
-                        'periodes_scolaires_id' => $periodeScolaireId, // Utilise la période active trouvée
+                        'periodes_scolaires_id' => $periodeScolaireId, 
                         'classeapprenants_id' => $classeApprenantId,
                         'nom_evaluation' => $request->nom_evaluation,
                         'type_evaluation' => $request->type_evaluation,
-                        'notes' => $note,
+                        'notes' => $noteSpecifique, // Enregistre la note spécifique
                         'duree' => $request->duree,
                         'date_evaluation' => $request->date_evaluation ?? now(),
-                        'observations' => $request->observations,
+                        'observations' => $observationGroupe, // Enregistre l'observation propre au groupe
                         'description' => $request->description,
                         'created_by' => Auth::id(),
                     ]);
