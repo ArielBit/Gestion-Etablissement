@@ -125,6 +125,15 @@ class BulletinController extends AdminController
             }
             
             $html .= '</div>';
+            
+            // --- AJOUT DU BOUTON DE CALCUL ICI ---
+            if ($selectedClassId) {
+                $urlCalcul = admin_url('bulletins/calculer?classes_id=' . $selectedClassId);
+                $html .= '<div style="margin-top: 15px;">';
+                $html .= "<a href='{$urlCalcul}' class='btn btn-success btn-sm'><i class='fa fa-calculator'></i> Calculer les moyennes et rangs généraux</a>";
+                $html .= '</div>';
+            }
+            // -------------------------------------
             $html .= '</div>';
 
             $tools->append($html);
@@ -157,34 +166,18 @@ class BulletinController extends AdminController
             return "<span class='badge bg-{$color}' style='font-size: 13px; padding: 5px 10px;'>{$moyGen} / 20</span>";
         });
 
-        // 7. Colonne Rang Général
+        // 7. Colonne Rang Général (dynamique)
         $grid->column('rang_general', __('Rang Général'))->display(function () {
-            // Logique de calcul du rang général de l'élève dans sa classe
-            $classeId = $this->classes_id;
-            $elevesClasse = Classeapprenant::where('classes_id', $classeId)->pluck('id_classeapprenants');
-            
-            $moyennesClasse = [];
-            foreach ($elevesClasse as $idApp) {
-                $bms = BulletinsMatiere::where('classeapprenants_id', $idApp)->get();
-                $moy = $bms->isNotEmpty() ? $bms->avg('moyenne') : null;
-                if ($moy !== null) {
-                    $moyennesClasse[$idApp] = round($moy, 2);
-                }
-            }
+            // Récupère le bulletin lié via les bulletins_matieres de l'élève
+            $bulletin = Bulletin::whereHas('bulletins_matiere', function($q) {
+                $q->where('classeapprenants_id', $this->id_classeapprenants);
+            })->first();
 
-            arsort($moyennesClasse);
-            $ranks = [];
-            $currRank = 1;
-            $prevScore = null;
-            $idx = 0;
-            foreach ($elevesClasse as $idApp => $score) {
-                // ... attribution des rangs
-            }
-            
-            // Pour faire simple ici, on récupère le bulletin global s'il existe, ou un tiret
-            $bulletin = Bulletin::whereHas('bulletins_matiere', fn($q) => $q->where('classeapprenants_id', $this->id_classeapprenants))->first();
             $rang = $bulletin?->rang ?? '-';
-            return $rang !== '-' ? "<strong>{$rang}</strong>" : '<span class="text-muted">-</span>';
+            
+            return $rang !== '-' 
+                ? "<span class='badge bg-info' style='font-size: 12px; padding: 5px 8px;'>{$rang}</span>" 
+                : '<span class="text-muted">-</span>';
         });
 
         // 8. Bloc contenant l'ensemble des moyennes et rangs dans les différentes matières
@@ -205,8 +198,20 @@ class BulletinController extends AdminController
                 $app = $bm->appreciation ?? '-';
                 $badgeCol = is_numeric($bm->moyenne) && $bm->moyenne < 10 ? 'label-danger' : 'label-success';
 
+                // Recherche du professeur associé à cette matière pour la classe courante
+                $affectation = Affectation::with('professeurs')
+                    ->where('classes_id', $this->classes_id)
+                    ->where('matieres_id', $bm->matieres_id)
+                    ->first();
+
+                $profNom = 'Non assigné';
+                if ($affectation && $affectation->professeurs) {
+                    $profNom = trim(($affectation->professeurs->personnel->nom ?? '') . ' ' . ($affectation->professeurs->personnel->prenom ?? ''));
+                }
+
+
                 $html .= "<div style='background: #f9f9f9; padding: 6px 10px; border-radius: 4px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;'>";
-                $html .= "<span><strong>{$nomMatiere}</strong></span>";
+               $html .= "<span><strong>{$nomMatiere}</strong> <br><small class='text-muted'>Prof: {$profNom}</small></span>";
                 $html .= "<div>";
                 $html .= "<span class='label {$badgeCol}' style='margin-right: 5px;'>Moy: {$moy}</span>";
                 $html .= "<span class='label label-info' style='margin-right: 5px;'>Rang: {$rang}</span>";
@@ -220,4 +225,109 @@ class BulletinController extends AdminController
 
         return $grid;
     }
+
+
+    public function calculerMoyennesGenerales(Request $request)
+    {
+        $classesId = $request->get('classes_id');
+        if (!$classesId) {
+            admin_toastr('Veuillez d\'abord sélectionner une classe.', 'error');
+            return redirect(admin_url('bulletins'));
+        }
+
+        $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnneeId = $parametreGlobal?->etablissementannees_id;
+
+        // Récupérer le type de la classe pour le type de bulletin
+        $selectedClasse = \App\Models\Classe::find($classesId);
+        $typeClasse = strtolower($selectedClasse?->type_cl ?? $selectedClasse?->systeme ?? 'trimestre');
+        $typeBulletin = str_contains($typeClasse, 'semestre') ? 'Semestrielle' : 'Trimestrielle';
+
+        // Récupérer tous les élèves de la classe
+        $apprenants = Classeapprenant::where('classes_id', $classesId)->get();
+        $moyennesGeneralesEleves = [];
+
+        // 1. Calcul dynamique de la moyenne générale de chaque élève
+        foreach ($apprenants as $app) {
+            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)
+                ->where('etablissementannees_id', $etablissementAnneeId)
+                ->get();
+
+            if ($bulletinsMatieres->isNotEmpty() && $bulletinsMatieres->avg('moyenne') !== null) {
+                $moyenneGen = round($bulletinsMatieres->avg('moyenne'), 2);
+            } else {
+                $moyenneGen = null;
+            }
+
+            $moyennesGeneralesEleves[$app->id_classeapprenants] = $moyenneGen;
+        }
+
+        // 2. Calcul dynamique des rangs généraux (du plus grand au plus petit, gestion des ex-aequo)
+        $valides = array_filter($moyennesGeneralesEleves, fn($m) => $m !== null);
+        arsort($valides);
+
+        $ranks = [];
+        $currentRank = 1;
+        $previousScore = null;
+        $index = 0;
+
+        foreach ($valides as $eleveId => $score) {
+            $index++;
+            if ($score !== $previousScore) {
+                $currentRank = $index;
+            }
+            
+            $suffixe = ($currentRank == 1) ? 'er' : 'ème';
+            $ranks[$eleveId] = $currentRank . $suffixe;
+            
+            $previousScore = $score;
+        }
+
+        // 3. Enregistrement et mise à jour dynamique des données dans la table bulletins
+        foreach ($apprenants as $app) {
+            $moy = $moyennesGeneralesEleves[$app->id_classeapprenants] ?? null;
+            $rang = $ranks[$app->id_classeapprenants] ?? null; // Récupère le rang calculé dynamiquement
+
+            if ($moy === null) {
+                continue;
+            }
+
+            // Détermination dynamique de l'appréciation
+            $appreciation = 'Insuffisant';
+            if ($moy >= 10 && $moy < 12) {
+                $appreciation = 'Passable';
+            } elseif ($moy >= 12 && $moy < 14) {
+                $appreciation = 'Assez bien';
+            } elseif ($moy >= 14 && $moy < 16) {
+                $appreciation = 'Bien';
+            } elseif ($moy >= 16) {
+                $appreciation = 'Très bien';
+            }
+
+            // Récupérer toutes les lignes de bulletins_matieres de cet élève
+            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)
+                ->where('etablissementannees_id', $etablissementAnneeId)
+                ->get();
+
+            foreach ($bulletinsMatieres as $bm) {
+                // Utilisation d'un updateOrCreate basé sur la matière de l'élève pour actualiser proprement le rang et la moyenne
+                Bulletin::updateOrCreate(
+                    [
+                        'bulletins_matieres_id' => $bm->id_bulletinsmatieres,
+                    ],
+                    [
+                        'moyenne'       => $moy,
+                        'rang'          => $rang, // Met à jour avec la nouvelle valeur dynamique
+                        'appreciation'  => $appreciation,
+                        'type_bulletin' => $typeBulletin,
+                        'updated_by'    => Auth::id(),
+                    ]
+                );
+            }
+        }
+
+        admin_toastr('Moyennes générales et rangs recalculés et mis à jour avec succès !', 'success');
+        return redirect(admin_url('bulletins?classes_id=' . $classesId));
+    }
 }
+    

@@ -18,6 +18,7 @@ Route::group([
 ], function (Router $router) {
     //Notes evaluations
     $router->get('evaluations/saisie-globale', 'EvaluationController@saisieGlobale');
+    $router->get('bulletins/calculer', 'BulletinController@calculerMoyennesGenerales');
     $router->post('evaluations/saisie-globale', 'EvaluationController@storeSaisieGlobale');
     $router->get('bulletins-matieres/calculer', [BulletinsMatiereController::class, 'calculerMoyennes']);
     $router->resource('bulletins-matieres', BulletinsMatiereController::class);
