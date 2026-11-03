@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 
  * @property int $id_bulletins
  * @property string|null $type_bulletin
- * @property string|null $moyenne
- * @property string|null $rang
+ * @property string|null $moyenne_g
+ * @property string|null $rang_g
  * @property string|null $appreciation
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -24,15 +24,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $deleted_by
- * @property int $bulletins_matieres_id
+ * @property int $classeapprenants_id
  * 
- * @property BulletinsMatiere $bulletins_matiere
+ * @property Classeapprenant $classeapprenant
  *
  * @package App\Models
  */
 class Bulletin extends Model
 {
-	use SoftDeletes;
+	//use SoftDeletes;
 	protected $table = 'bulletins';
 	protected $primaryKey = 'id_bulletins';
 
@@ -40,22 +40,23 @@ class Bulletin extends Model
 		'created_by' => 'int',
 		'updated_by' => 'int',
 		'deleted_by' => 'int',
-		'bulletins_matieres_id' => 'int'
+		'classeapprenants_id' => 'int',
 	];
 
 	protected $fillable = [
 		'type_bulletin',
-		'moyenne',
-		'rang',
+		'moyenne_g',
+		'rang_g',
 		'appreciation',
 		'created_by',
 		'updated_by',
 		'deleted_by',
-		'bulletins_matieres_id'
+		'classeapprenants_id'
 	];
 
-	public function bulletins_matiere()
+
+	public function classeapprenant()
 	{
-		return $this->belongsTo(BulletinsMatiere::class, 'bulletins_matieres_id');
+		return $this->belongsTo(Classeapprenant::class, 'classeapprenants_id');
 	}
 }

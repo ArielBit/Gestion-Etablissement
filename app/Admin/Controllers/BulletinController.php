@@ -155,31 +155,32 @@ class BulletinController extends AdminController
             return "<strong>{$nomComplet}</strong><br><code style='font-size: 11px;'>Mat: {$matricule}</code>";
         });
 
-        // 6. Colonne Moyenne Générale (Calculée à partir des bulletins matières)
-        $grid->column('moyenne_ generale', __('Moyenne Générale'))->display(function () {
-            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $this->id_classeapprenants)->get();
-            if ($bulletinsMatieres->isEmpty() || $bulletinsMatieres->avg('moyenne') === null) {
+       // Colonne Moyenne Générale
+        $grid->column('moyenne_generale', __('Moyenne Générale'))->display(function () {
+            // On cherche le bulletin associé à cet élève via son ID
+            $bulletin = \App\Models\Bulletin::where('classeapprenants_id', $this->id_classeapprenants)->first();
+            $moy = $bulletin?->moyenne_g ?? null;
+
+            if ($moy === null || $moy === '') {
+                return '<span class="text-muted">- (Non calculé)</span>';
+            }
+
+            $badgeColor = is_numeric($moy) && (float)$moy < 10 ? 'danger' : 'success';
+            return "<span class='badge bg-{$badgeColor}' style='font-size: 13px; padding: 5px 10px;'>{$moy} / 20</span>";
+        });
+
+        // Colonne Rang Général
+        $grid->column('rang_general', __('Rang Général'))->display(function () {
+            $bulletin = \App\Models\Bulletin::where('classeapprenants_id', $this->id_classeapprenants)->first();
+            $rangVal = $bulletin?->rang_g;
+
+            if (empty($rangVal) || $rangVal === '-') {
                 return '<span class="text-muted">-</span>';
             }
-            $moyGen = round($bulletinsMatieres->avg('moyenne'), 2);
-            $color = $moyGen < 10 ? 'danger' : 'success';
-            return "<span class='badge bg-{$color}' style='font-size: 13px; padding: 5px 10px;'>{$moyGen} / 20</span>";
+
+            return "<span class='badge bg-info' style='font-size: 12px; padding: 5px 8px;'><strong>{$rangVal}</strong></span>";
         });
-
-        // 7. Colonne Rang Général (dynamique)
-        $grid->column('rang_general', __('Rang Général'))->display(function () {
-            // Récupère le bulletin lié via les bulletins_matieres de l'élève
-            $bulletin = Bulletin::whereHas('bulletins_matiere', function($q) {
-                $q->where('classeapprenants_id', $this->id_classeapprenants);
-            })->first();
-
-            $rang = $bulletin?->rang ?? '-';
-            
-            return $rang !== '-' 
-                ? "<span class='badge bg-info' style='font-size: 12px; padding: 5px 8px;'>{$rang}</span>" 
-                : '<span class="text-muted">-</span>';
-        });
-
+        
         // 8. Bloc contenant l'ensemble des moyennes et rangs dans les différentes matières
         $grid->column('details_matieres_bloc', __('Détails par Matière'))->display(function () {
             $bulletinsMatieres = BulletinsMatiere::with('matiere')
@@ -227,107 +228,114 @@ class BulletinController extends AdminController
     }
 
 
-    public function calculerMoyennesGenerales(Request $request)
-    {
-        $classesId = $request->get('classes_id');
-        if (!$classesId) {
-            admin_toastr('Veuillez d\'abord sélectionner une classe.', 'error');
-            return redirect(admin_url('bulletins'));
-        }
+  public function calculerMoyennesGenerales(Request $request)
+{
+    $classesId = $request->get('classes_id');
+    if (!$classesId) {
+        admin_toastr('Veuillez d\'abord sélectionner une classe.', 'error');
+        return redirect(admin_url('bulletins'));
+    }
 
-        $parametreGlobal = ParametresGlobaux::first();
-        $etablissementAnneeId = $parametreGlobal?->etablissementannees_id;
+    $parametreGlobal = ParametresGlobaux::first();
+    $selectedClasse = \App\Models\Classe::find($classesId);
+    $typeClasse = strtolower($selectedClasse?->type_cl ?? $selectedClasse?->systeme ?? 'trimestre');
+    $typeBulletin = str_contains($typeClasse, 'semestre') ? 'Semestrielle' : 'Trimestrielle';
 
-        // Récupérer le type de la classe pour le type de bulletin
-        $selectedClasse = \App\Models\Classe::find($classesId);
-        $typeClasse = strtolower($selectedClasse?->type_cl ?? $selectedClasse?->systeme ?? 'trimestre');
-        $typeBulletin = str_contains($typeClasse, 'semestre') ? 'Semestrielle' : 'Trimestrielle';
+    // 1. Récupérer tous les élèves de la classe
+    $apprenants = Classeapprenant::where('classes_id', $classesId)->get();
+    $moyennesGeneralesEleves = [];
 
-        // Récupérer tous les élèves de la classe
-        $apprenants = Classeapprenant::where('classes_id', $classesId)->get();
-        $moyennesGeneralesEleves = [];
+    // 2. Calculer la vraie moyenne générale globale de chaque élève
+    foreach ($apprenants as $app) {
+        // Récupérer toutes les notes des matières de cet élève
+        $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)->get();
 
-        // 1. Calcul dynamique de la moyenne générale de chaque élève
-        foreach ($apprenants as $app) {
-            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)
-                ->where('etablissementannees_id', $etablissementAnneeId)
-                ->get();
+        $sommeNotes = 0.0;
+        $nombreMatieresNotes = 0;
 
-            if ($bulletinsMatieres->isNotEmpty() && $bulletinsMatieres->avg('moyenne') !== null) {
-                $moyenneGen = round($bulletinsMatieres->avg('moyenne'), 2);
-            } else {
-                $moyenneGen = null;
+        foreach ($bulletinsMatieres as $bm) {
+            // On s'assure qu'on prend bien la valeur de la colonne moyenne
+            $noteBrute = $bm->moyenne;
+
+            if ($noteBrute !== null && $noteBrute !== '') {
+                // Conversion propre en float (qu'elle soit string avec point ou nombre)
+                $noteFloat = (float) str_replace(',', '.', $noteBrute);
+                
+                $sommeNotes += $noteFloat;
+                $nombreMatieresNotes++;
             }
-
-            $moyennesGeneralesEleves[$app->id_classeapprenants] = $moyenneGen;
         }
 
-        // 2. Calcul dynamique des rangs généraux (du plus grand au plus petit, gestion des ex-aequo)
-        $valides = array_filter($moyennesGeneralesEleves, fn($m) => $m !== null);
-        arsort($valides);
+        // DEBUG : Décommente la ligne suivante pour tester sur un seul élève et voir le total dans ton navigateur
+        //dd($app->id_classeapprenants, $bulletinsMatieres->pluck('moyenne'), $sommeNotes, $nombreMatieresNotes);
 
-        $ranks = [];
-        $currentRank = 1;
-        $previousScore = null;
-        $index = 0;
-
-        foreach ($valides as $eleveId => $score) {
-            $index++;
-            if ($score !== $previousScore) {
-                $currentRank = $index;
-            }
-            
-            $suffixe = ($currentRank == 1) ? 'er' : 'ème';
-            $ranks[$eleveId] = $currentRank . $suffixe;
-            
-            $previousScore = $score;
+        // Calcul final de la moyenne générale
+        if ($nombreMatieresNotes > 0) {
+            $moyennesGeneralesEleves[$app->id_classeapprenants] = round($sommeNotes / $nombreMatieresNotes, 2);
+        } else {
+            $moyennesGeneralesEleves[$app->id_classeapprenants] = null;
         }
+    }
 
-        // 3. Enregistrement et mise à jour dynamique des données dans la table bulletins
+    // 3. Calculer les rangs généraux de la classe (du plus grand au plus petit, gestion des ex-aequo)
+    $valides = array_filter($moyennesGeneralesEleves, fn($m) => $m !== null);
+    arsort($valides);
+
+    $ranks = [];
+    $currentRank = 1;
+    $previousScore = null;
+    $index = 0;
+
+    foreach ($valides as $eleveId => $score) {
+        $index++;
+        if ($score !== $previousScore) {
+            $currentRank = $index;
+        }
+        $suffixe = ($currentRank == 1) ? 'er' : 'ème';
+        $ranks[$eleveId] = $currentRank . $suffixe;
+        $previousScore = $score;
+    }
+
+    // 4. Enregistrer avec les nouveaux champs moyenne_g et rang_g
+    try {
         foreach ($apprenants as $app) {
             $moy = $moyennesGeneralesEleves[$app->id_classeapprenants] ?? null;
-            $rang = $ranks[$app->id_classeapprenants] ?? null; // Récupère le rang calculé dynamiquement
+            $rang = $ranks[$app->id_classeapprenants] ?? '-';
 
             if ($moy === null) {
                 continue;
             }
 
-            // Détermination dynamique de l'appréciation
+            // Appréciation globale
             $appreciation = 'Insuffisant';
-            if ($moy >= 10 && $moy < 12) {
-                $appreciation = 'Passable';
-            } elseif ($moy >= 12 && $moy < 14) {
-                $appreciation = 'Assez bien';
-            } elseif ($moy >= 14 && $moy < 16) {
-                $appreciation = 'Bien';
-            } elseif ($moy >= 16) {
-                $appreciation = 'Très bien';
-            }
+            if ($moy >= 10 && $moy < 12) $appreciation = 'Passable';
+            elseif ($moy >= 12 && $moy < 14) $appreciation = 'Assez bien';
+            elseif ($moy >= 14 && $moy < 16) $appreciation = 'Bien';
+            elseif ($moy >= 16) $appreciation = 'Très bien';
 
-            // Récupérer toutes les lignes de bulletins_matieres de cet élève
-            $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)
-                ->where('etablissementannees_id', $etablissementAnneeId)
-                ->get();
-
-            foreach ($bulletinsMatieres as $bm) {
-                // Utilisation d'un updateOrCreate basé sur la matière de l'élève pour actualiser proprement le rang et la moyenne
-                Bulletin::updateOrCreate(
-                    [
-                        'bulletins_matieres_id' => $bm->id_bulletinsmatieres,
-                    ],
-                    [
-                        'moyenne'       => $moy,
-                        'rang'          => $rang, // Met à jour avec la nouvelle valeur dynamique
-                        'appreciation'  => $appreciation,
-                        'type_bulletin' => $typeBulletin,
-                        'updated_by'    => Auth::id(),
-                    ]
-                );
-            }
+            // On s'assure qu'on cherche l'enregistrement unique de cet élève précis
+            Bulletin::updateOrCreate(
+                [
+                    'classeapprenants_id' => $app->id_classeapprenants,
+                    // Si tu gères plusieurs trimestres/semestres, décommente la ligne ci-dessous :
+                    // 'type_bulletin' => $typeBulletin, 
+                ],
+                [
+                    'moyenne_g'     => (string) $moy,
+                    'rang_g'        => $rang,
+                    'appreciation'  => $appreciation,
+                    'type_bulletin' => $typeBulletin,
+                    'updated_by'    => Auth::guard('admin')->id() ?? Auth::id(),
+                ]
+            );
         }
 
-        admin_toastr('Moyennes générales et rangs recalculés et mis à jour avec succès !', 'success');
-        return redirect(admin_url('bulletins?classes_id=' . $classesId));
+        admin_toastr('Moyennes générales et rangs calculés et enregistrés avec succès !', 'success');
+    } catch (\Exception $e) {
+        admin_toastr('Erreur lors de l\'enregistrement : ' . $e->getMessage(), 'error');
     }
+
+    return redirect(admin_url('bulletins?classes_id=' . $classesId));
+}
 }
     

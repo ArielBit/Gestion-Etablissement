@@ -86,8 +86,5 @@ class BulletinsMatiere extends Model
 		return $this->belongsTo(Matiere::class, 'matieres_id');
 	}
 
-	public function bulletins()
-	{
-		return $this->hasMany(Bulletin::class, 'bulletins_matieres_id');
-	}
+	
 }

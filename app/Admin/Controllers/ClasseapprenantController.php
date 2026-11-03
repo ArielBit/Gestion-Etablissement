@@ -28,6 +28,8 @@ class ClasseapprenantController extends AdminController
     {
         $grid = new Grid(new Classeapprenant());
 
+        $grid->column('id_classeapprenants', __('ID'));
+
         $grid->column('annee_scolaire', 'Année scolaire')
     ->display(function () {
         return optional(
