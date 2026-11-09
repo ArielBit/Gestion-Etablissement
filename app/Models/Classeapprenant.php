@@ -90,7 +90,7 @@ public function classes()
 		return $this->belongsTo(Etablissementannee::class, 'etablissementannees_id');
 	}
 
-	public function bulletins_matieres()
+	public function bulletinsMatieres()
 	{
 		return $this->hasMany(BulletinsMatiere::class, 'classeapprenants_id');
 	}

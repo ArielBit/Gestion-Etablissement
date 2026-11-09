@@ -18,53 +18,63 @@ class BulletinController extends AdminController
 {
     protected function grid()
     {
-        $grid = new Grid(new Classeapprenant());
-        $grid->model()->with('apprenants');
+    $grid = new Grid(new Classeapprenant());
+    $grid->model()->with('apprenants');
 
-        $currentUser = Auth::guard('admin')->user();
-        $professeur = null;
-        $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+    // Récupération de l'année active
+    $parametreGlobal = ParametresGlobaux::first();
+    // TEST DE DIAGNOSTIC : Qu'est-ce qui est stocké dans les paramètres globaux ?
 
-        // 1. Filtrage strict : Seul l'admin ou le professeur principal de la classe peut voir
-        if (!$isAdmin && $currentUser) {
-            $professeur = Professeur::where('matricule', $currentUser->username)->first();
-            if ($professeur) {
-                // Récupérer uniquement les classes où ce professeur est désigné comme "professeur_principal" dans la table affectations
-                $classeIdsPrincipal = \App\Models\Affectation::where('professeur_principal', $professeur->id_professeurs)
-                    ->pluck('classes_id');
+       /*dd([
+            'ParametresGlobaux complet' => $parametreGlobal?->toArray(),
+            'etablissementannees_id récupéré' => $parametreGlobal?->etablissementannees_id ?? 'AUCUN ID TROUVÉ',
+            'Année scolaire liée' => optional($parametreGlobal?->etablissementAnnees)->toArray()
+        ]);*/
+        
+    $etablissementAnneesId = $parametreGlobal?->etablissementannees_id;
 
-                if ($classeIdsPrincipal->isNotEmpty()) {
-                    $grid->model()->whereIn('classes_id', $classeIdsPrincipal);
-                } else {
-                    $grid->model()->whereRaw('1 = 0'); // Bloqué si pas professeur principal
-                }
+    if ($etablissementAnneesId) {
+        $grid->model()->where('etablissementannees_id', $etablissementAnneesId);
+    }
+
+    $currentUser = Auth::guard('admin')->user();
+    $professeur = null;
+    $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+
+    if (!$isAdmin && $currentUser) {
+        $professeur = Professeur::where('matricule', $currentUser->username)->first();
+        if ($professeur) {
+            $classeIdsPrincipal = \App\Models\Affectation::where('professeur_principal', $professeur->id_professeurs)
+                ->pluck('classes_id');
+
+            if ($classeIdsPrincipal->isNotEmpty()) {
+                $grid->model()->whereIn('classes_id', $classeIdsPrincipal);
             } else {
+                $grid->model()->whereRaw('1 = 0'); 
+            }
+        } else {
+            $grid->model()->whereRaw('1 = 0');
+        }
+    }
+
+    $selectedClassId = request('classes_id');
+    if ($selectedClassId) {
+        $grid->model()->where('classes_id', $selectedClassId);
+        
+        if (!$isAdmin && $professeur) {
+            $estPP = \App\Models\Affectation::where('classes_id', $selectedClassId)
+                ->where('professeur_principal', $professeur->id_professeurs)
+                ->exists();
+
+            if (!$estPP) {
                 $grid->model()->whereRaw('1 = 0');
             }
         }
+    } else {
+        $grid->model()->whereRaw('1 = 0');
+    }
 
-        // 2. Traitement du filtre par classe
-        $selectedClassId = request('classes_id');
-        if ($selectedClassId) {
-            $grid->model()->where('classes_id', $selectedClassId);
-            
-            // Si prof, vérifier qu'il est bien professeur principal de cette classe
-            if (!$isAdmin && $professeur) {
-                $estPP = \App\Models\Affectation::where('classes_id', $selectedClassId)
-                    ->where('professeur_principal', $professeur->id_professeurs)
-                    ->exists();
-
-                if (!$estPP) {
-                    $grid->model()->whereRaw('1 = 0');
-                }
-            }
-        } else {
-            // Si aucune classe n'est sélectionnée, on restreint pour éviter d'afficher toute l'école
-            $grid->model()->whereRaw('1 = 0');
-        }
-
-        // 3. Récupération des paramètres globaux (Établissement, Année, Période)
-        $parametreGlobal = ParametresGlobaux::first();
+        // 4. Récupération des informations pour l'en-tête de la barre d'outils
         $etablissementAnnee = $parametreGlobal?->etablissementannee;
         $etablissementAnnees = $parametreGlobal?->etablissementAnnees;
         $nomEtablissement = optional($etablissementAnnee?->etablissement)->nom_etablissement ?? 'Établissement Scolaire';
@@ -84,10 +94,9 @@ class BulletinController extends AdminController
             }
         }
 
-        // 4. Barre d'outils avec grands titres et sélection de classes pour le Prof Principal
-        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode) {
+        // 5. Barre d'outils avec affichage dynamique et comptage filtré par année active
+        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode, $etablissementAnneesId) {
             
-            // Récupérer uniquement les classes où ce professeur est professeur principal
             $classesQuery = \App\Models\Classe::query();
             
             if (!$isAdmin && $professeur) {
@@ -111,10 +120,13 @@ class BulletinController extends AdminController
 
             $html .= '<div class="btn-group" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">';
             
-            // Vérification s'il y a des classes attribuées en tant que Professeur Principal
             if ($classesAutorisees->isNotEmpty()) {
                 foreach ($classesAutorisees as $cls) {
-                    $count = \App\Models\Classeapprenant::where('classes_id', $cls->id_classes)->count();
+                    // COMPTEUR STRICT : On compte les élèves de la classe UNIQUEMENT pour l'année active
+                    $count = \App\Models\Classeapprenant::where('classes_id', $cls->id_classes)
+                        ->where('etablissementannees_id', $etablissementAnneesId)
+                        ->count();
+
                     $active = ($selectedClassId == $cls->id_classes) ? 'btn-primary' : 'btn-default';
                     $url = $baseUrl . '?classes_id=' . $cls->id_classes;
 
@@ -126,27 +138,26 @@ class BulletinController extends AdminController
             
             $html .= '</div>';
             
-            // --- AJOUT DU BOUTON DE CALCUL ICI ---
+            // Bouton de calcul
             if ($selectedClassId) {
                 $urlCalcul = admin_url('bulletins/calculer?classes_id=' . $selectedClassId);
                 $html .= '<div style="margin-top: 15px;">';
                 $html .= "<a href='{$urlCalcul}' class='btn btn-success btn-sm'><i class='fa fa-calculator'></i> Calculer les moyennes et rangs généraux</a>";
                 $html .= '</div>';
             }
-            // -------------------------------------
+            
             $html .= '</div>';
 
             $tools->append($html);
         });
-    
 
         $grid->disableFilter();
         $grid->disableCreateButton();
         $grid->disableActions();
 
-        // 5. Colonne Élève (Nom, Prénom, Matricule)
+        // 6. Colonnes du tableau (Élève, Moyennes, etc.)
         $grid->column('id_classeapprenants', __('Élève'))->display(function () {
-            $app = $this->apprenants; // Récupère l'élève lié via l'instance courante
+            $app = $this->apprenants;
             if (!$app) return '-';
             
             $nomComplet = trim(($app->nom ?? '') . ' ' . ($app->prenom ?? ''));
@@ -155,9 +166,7 @@ class BulletinController extends AdminController
             return "<strong>{$nomComplet}</strong><br><code style='font-size: 11px;'>Mat: {$matricule}</code>";
         });
 
-       // Colonne Moyenne Générale
         $grid->column('moyenne_generale', __('Moyenne Générale'))->display(function () {
-            // On cherche le bulletin associé à cet élève via son ID
             $bulletin = \App\Models\Bulletin::where('classeapprenants_id', $this->id_classeapprenants)->first();
             $moy = $bulletin?->moyenne_g ?? null;
 
@@ -169,7 +178,6 @@ class BulletinController extends AdminController
             return "<span class='badge bg-{$badgeColor}' style='font-size: 13px; padding: 5px 10px;'>{$moy} / 20</span>";
         });
 
-        // Colonne Rang Général
         $grid->column('rang_general', __('Rang Général'))->display(function () {
             $bulletin = \App\Models\Bulletin::where('classeapprenants_id', $this->id_classeapprenants)->first();
             $rangVal = $bulletin?->rang_g;
@@ -228,48 +236,52 @@ class BulletinController extends AdminController
     }
 
 
-  public function calculerMoyennesGenerales(Request $request)
+public function calculerMoyennesGenerales(Request $request)
 {
     $classesId = $request->get('classes_id');
     if (!$classesId) {
         admin_toastr('Veuillez d\'abord sélectionner une classe.', 'error');
-        return redirect(admin_url('bulletins'));
+        return redirect(admin_url('classeapprenants'));
     }
 
+    // 1. Récupérer l'année active via les paramètres globaux
     $parametreGlobal = ParametresGlobaux::first();
+    $etablissementAnneesId = $parametreGlobal?->etablissementannees_id ?? null;
+
     $selectedClasse = \App\Models\Classe::find($classesId);
     $typeClasse = strtolower($selectedClasse?->type_cl ?? $selectedClasse?->systeme ?? 'trimestre');
     $typeBulletin = str_contains($typeClasse, 'semestre') ? 'Semestrielle' : 'Trimestrielle';
 
-    // 1. Récupérer tous les élèves de la classe
-    $apprenants = Classeapprenant::where('classes_id', $classesId)->get();
+    // 2. Récupérer tous les élèves de la classe pour cette année en une seule requête (Eager Loading)
+    $queryApprenants = Classeapprenant::where('classes_id', $classesId);
+    if ($etablissementAnneesId) {
+        $queryApprenants->where('etablissementannees_id', $etablissementAnneesId);
+    }
+    
+    $apprenants = $queryApprenants->with('bulletinsMatieres')->get();
+
+    if ($apprenants->isEmpty()) {
+        admin_toastr('Aucun élève trouvé pour cette classe.', 'warning');
+        return redirect(admin_url('classeapprenants?classes_id=' . $classesId));
+    }
+
     $moyennesGeneralesEleves = [];
 
-    // 2. Calculer la vraie moyenne générale globale de chaque élève
+    // 3. Calcul rapide en mémoire (sans requêtes SQL dans la boucle)
     foreach ($apprenants as $app) {
-        // Récupérer toutes les notes des matières de cet élève
-        $bulletinsMatieres = BulletinsMatiere::where('classeapprenants_id', $app->id_classeapprenants)->get();
-
         $sommeNotes = 0.0;
         $nombreMatieresNotes = 0;
 
-        foreach ($bulletinsMatieres as $bm) {
-            // On s'assure qu'on prend bien la valeur de la colonne moyenne
-            $noteBrute = $bm->moyenne;
+        foreach ($app->bulletinsMatieres as $bm) {
+            $noteString = trim((string) ($bm->moyenne ?? ''));
+            $noteString = str_replace(',', '.', $noteString);
 
-            if ($noteBrute !== null && $noteBrute !== '') {
-                // Conversion propre en float (qu'elle soit string avec point ou nombre)
-                $noteFloat = (float) str_replace(',', '.', $noteBrute);
-                
-                $sommeNotes += $noteFloat;
+            if ($noteString !== '' && is_numeric($noteString)) {
+                $sommeNotes += (float) $noteString;
                 $nombreMatieresNotes++;
             }
         }
 
-        // DEBUG : Décommente la ligne suivante pour tester sur un seul élève et voir le total dans ton navigateur
-        //dd($app->id_classeapprenants, $bulletinsMatieres->pluck('moyenne'), $sommeNotes, $nombreMatieresNotes);
-
-        // Calcul final de la moyenne générale
         if ($nombreMatieresNotes > 0) {
             $moyennesGeneralesEleves[$app->id_classeapprenants] = round($sommeNotes / $nombreMatieresNotes, 2);
         } else {
@@ -277,7 +289,7 @@ class BulletinController extends AdminController
         }
     }
 
-    // 3. Calculer les rangs généraux de la classe (du plus grand au plus petit, gestion des ex-aequo)
+    // 4. Calcul des rangs généraux
     $valides = array_filter($moyennesGeneralesEleves, fn($m) => $m !== null);
     arsort($valides);
 
@@ -296,7 +308,7 @@ class BulletinController extends AdminController
         $previousScore = $score;
     }
 
-    // 4. Enregistrer avec les nouveaux champs moyenne_g et rang_g
+    // 5. Enregistrement en base de données
     try {
         foreach ($apprenants as $app) {
             $moy = $moyennesGeneralesEleves[$app->id_classeapprenants] ?? null;
@@ -306,20 +318,14 @@ class BulletinController extends AdminController
                 continue;
             }
 
-            // Appréciation globale
             $appreciation = 'Insuffisant';
             if ($moy >= 10 && $moy < 12) $appreciation = 'Passable';
             elseif ($moy >= 12 && $moy < 14) $appreciation = 'Assez bien';
             elseif ($moy >= 14 && $moy < 16) $appreciation = 'Bien';
             elseif ($moy >= 16) $appreciation = 'Très bien';
 
-            // On s'assure qu'on cherche l'enregistrement unique de cet élève précis
             Bulletin::updateOrCreate(
-                [
-                    'classeapprenants_id' => $app->id_classeapprenants,
-                    // Si tu gères plusieurs trimestres/semestres, décommente la ligne ci-dessous :
-                    // 'type_bulletin' => $typeBulletin, 
-                ],
+                ['classeapprenants_id' => $app->id_classeapprenants],
                 [
                     'moyenne_g'     => (string) $moy,
                     'rang_g'        => $rang,
@@ -330,7 +336,7 @@ class BulletinController extends AdminController
             );
         }
 
-        admin_toastr('Moyennes générales et rangs calculés et enregistrés avec succès !', 'success');
+        admin_toastr('Moyennes générales et rangs calculés avec succès !', 'success');
     } catch (\Exception $e) {
         admin_toastr('Erreur lors de l\'enregistrement : ' . $e->getMessage(), 'error');
     }
