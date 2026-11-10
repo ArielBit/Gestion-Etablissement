@@ -2,200 +2,146 @@
 
 namespace App\Admin\Controllers;
 
-use App\Models\Affectation;
-use App\Models\Educateur;
 use App\Models\Classeapprenant;
+use App\Models\Classe;
+use App\Models\Educateur;
+use App\Models\EducateursScolaritesniveaux;
+use App\Models\Etablissementannee;
 use App\Models\ParametresGlobaux;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Grid;
 use Illuminate\Support\Facades\Auth;
 
-class ApprenantEducController extends AdminController
+class ApprenanteducController extends AdminController
 {
-    protected $title = 'Mes Classes et Apprenants';
+    protected $title = 'Apprenants de mes Niveaux et Classes';
 
     protected function grid()
-    {
-        $grid = new Grid(new Affectation());
-
-        // 1. Récupérer l'année scolaire active et ses libellés depuis les paramètres globaux
+    { // 1. Récupérer l'ID de l'année scolaire active globale et son libellé
         $parametreGlobal = ParametresGlobaux::first();
         $etablissementAnneesId = $parametreGlobal?->anneescolaire_id;
-
-        $etablissementAnnees = $parametreGlobal?->etablissementAnnees;
-        $anneeScolaireNom = optional($etablissementAnnees?->anneeScolaire)->annee_scolaire ?? 'Année active';
+        
+        $anneeActiveLibelle = 'Non définie';
+        if ($etablissementAnneesId) {
+            $anneeActive = $parametreGlobal?->etablissementAnnees;
+            $anneeActiveLibelle = optional($anneeActive?->anneeScolaire)->annee_scolaire ?? 'Année active';
+        }
 
         $currentUser = Auth::guard('admin')->user();
         $educateur = null;
+        $classeIdsEducateur = [];
 
-        // 2. Filtrage initial par l'éducateur connecté
+        // 2. Si c'est un éducateur, récupérer ses niveaux via la table pivot pour l'année active, puis ses classes
         if ($currentUser && $currentUser->isRole('educateur')) {
-            $educateur = Educateur::where('matricule', $currentUser->username)->first();
+            $educateur = Educateur::where('matricule', $currentUser->username)
+                ->orWhere('id_educateurs', $currentUser->id ?? 0)
+                ->first();
 
-            if ($educateur) {
-                $grid->model()->where('educateurs_id', $educateur->id_educateurs);
-            } else {
-                $grid->model()->whereRaw('1 = 0');
+            if ($educateur && $etablissementAnneesId) {
+                // Récupérer les IDs des niveaux (scolarites_niveaux_id) assignés à l'éducateur pour l'année active
+                $niveauxIds = EducateursScolaritesniveaux::where('educateurs_id', $educateur->id_educateurs)
+                    ->where('etablissementannees_id', $etablissementAnneesId)
+                    ->pluck('scolarites_niveaux_id')
+                    ->toArray();
+
+                // Récupérer toutes les classes appartenant à ces niveaux
+                if (!empty($niveauxIds)) {
+                    $classeIdsEducateur = Classe::whereIn('scolarites_niveaux_id', $niveauxIds)
+                        ->pluck('id_classes')
+                        ->toArray();
+                }
             }
         }
 
-        // 3. Traitement du filtre par clic sur un bouton de classe
+        // 3. Initialiser la grille sur le modèle Classeapprenant
+        $grid = new Grid(new Classeapprenant());
+
+        // Filtrer strictement par l'année scolaire active
+        if ($etablissementAnneesId) {
+            $grid->model()->where('etablissementannees_id', $etablissementAnneesId);
+        } else {
+            $grid->model()->whereRaw('1 = 0');
+        }
+
+        if ($currentUser && $currentUser->isRole('educateur')) {
+            if (!empty($classeIdsEducateur)) {
+                $grid->model()->whereIn('classes_id', $classeIdsEducateur);
+            } else {
+                $grid->model()->whereRaw('1 = 0'); // Sécurité si aucune classe trouvée pour ce niveau
+            }
+        }
+
+        // 4. Traitement du filtre par clic sur un bouton de classe spécifique
         $selectedClassId = request('classes_id');
         if ($selectedClassId) {
             $grid->model()->where('classes_id', $selectedClassId);
         }
 
-        // 4. Injecter la barre de boutons, l'année active et le sous-titre dynamique
-        $grid->tools(function (Grid\Tools $tools) use ($currentUser, $educateur, $selectedClassId, $etablissementAnneesId, $anneeScolaireNom) {
-            $query = Affectation::with('classes');
-            if ($educateur) {
-                $query->where('educateurs_id', $educateur->id_educateurs);
-            }
-            $affectations = $query->get();
+        // 5. Injecter la zone de l'année active et la barre de boutons dynamiques par classe
+        $grid->tools(function (Grid\Tools $tools) use ($selectedClassId, $classeIdsEducateur, $anneeActiveLibelle) {
+            $query = Classe::query();
 
+            if (!empty($classeIdsEducateur)) {
+                $query->whereIn('id_classes', $classeIdsEducateur);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            $classes = $query->get();
             $baseUrl = request()->url();
 
-            $html = '<div style="margin-bottom: 20px; background: #ffffff; padding: 15px; border-radius: 5px; border: 1px solid #e3e3e3; box-shadow: 0 1px 1px rgba(0,0,0,.05);">';
+            $html = '<div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
             
-            // Affichage de l'année scolaire active tout en haut
-            $html .= '<h4 style="margin-top: 0; color: #3c8dbc; font-weight: bold; border-bottom: 2px solid #3c8dbc; padding-bottom: 8px;">📅 Année Scolaire Active : ' . $anneeScolaireNom . '</h4>';
-
-            $html .= '<div class="btn-group" style="margin-top: 10px; margin-bottom: 10px; display: flex; gap: 5px; flex-wrap: wrap;">';
-
-            // Bouton "Toutes mes classes"
-            $activeAll = empty($selectedClassId) ? 'btn-primary' : 'btn-default';
-            $html .= "<a href='{$baseUrl}' class='btn btn-sm {$activeAll}'>Toutes mes classes</a>";
-
-            // Calcul global et badges individuels par classe (filtrés par l'année active des apprenants)
-            $classCounts = [];
-            $classesUniques = $affectations->unique('classes_id');
-
-            foreach ($classesUniques as $aff) {
-                $count = Classeapprenant::where('classes_id', $aff->classes_id)
-                    ->where('etablissementannees_id', $etablissementAnneesId) // Comparaison stricte avec l'année active
-                    ->count();
-
-                $classCounts[$aff->classes_id] = $count;
-
-                $nom = optional($aff->classes)->nom_classe;
-                if (!$nom) continue;
-
-                $active = ($selectedClassId == $aff->classes_id) ? 'btn-primary' : 'btn-default';
-                $url = $baseUrl . '?classes_id=' . $aff->classes_id;
-
-                $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$nom} <span class='badge bg-gray'>{$count}</span></a>";
-            }
-
+            // Zone d'affichage de l'Année Scolaire Active
+            $html .= '<div>';
+            $html .= '<span class="label label-success" style="font-size: 13px; padding: 7px 12px; display: inline-block;">';
+            $html .= '<i class="fa fa-calendar"></i> Année Scolaire Active : <strong>' . htmlspecialchars($anneeActiveLibelle) . '</strong>';
+            $html .= '</span>';
             $html .= '</div>';
 
-            // Affichage du sous-titre du nombre d'élèves
-            if ($selectedClassId && isset($classCounts[$selectedClassId])) {
-                $selectedClassObj = $affectations->firstWhere('classes_id', $selectedClassId);
-                $selectedClass = optional($selectedClassObj?->classes)->nom_classe ?? '';
-                $totalEleves = $classCounts[$selectedClassId];
-                $texteEffectif = "Nombre d'élèves de la classe <strong>{$selectedClass}</strong> pour l'année active : <strong>{$totalEleves}</strong>";
-            } else {
-                $totalEleves = Classeapprenant::whereIn('classes_id', array_keys($classCounts))
-                    ->where('etablissementannees_id', $etablissementAnneesId)
-                    ->count();
-                $texteEffectif = "Nombre total d'élèves (toutes vos classes confondues pour l'année active) : <strong>{$totalEleves}</strong>";
-            }
+            // Boutons de filtrage par classe
+            $html .= '<div class="btn-group">';
+            $activeAll = empty($selectedClassId) ? 'btn-primary' : 'btn-default';
+            $html .= "<a href='{$baseUrl}' class='btn btn-sm {$activeAll}'>Tous mes apprenants</a>";
 
-            $html .= "<div style='margin-top: 8px; font-size: 14px; color: #333;'>{$texteEffectif}</div>";
+            foreach ($classes as $classe) {
+                $active = ($selectedClassId == $classe->id_classes) ? 'btn-primary' : 'btn-default';
+                $url = $baseUrl . '?classes_id=' . $classe->id_classes;
+
+                $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$classe->nom_classe}</a>";
+            }
+            $html .= '</div>';
+
             $html .= '</div>';
 
             $tools->append($html);
         });
 
-        // 5. Désactiver le filtre standard par formulaire
+        // 6. Désactiver les filtres et actions superflus
         $grid->disableFilter();
         $grid->disableCreateButton();
         $grid->disableActions();
 
-        // 6. Colonne ID (filtrée strictement par l'année scolaire active de classeapprenant)
-        $grid->column('apprenants_ids', __('ID'))->display(function () use ($etablissementAnneesId) {
-            $apprenants = Classeapprenant::with('apprenants')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId)
-                ->get()
-                ->sortBy(function ($item) {
-                    return optional($item->apprenants)->nom;
-                });
+        // 7. Colonnes du tableau pour les apprenants
+        $grid->column('id_classeapprenants', __('Id'));
 
-            if ($apprenants->isEmpty()) return '-';
-
-            $html = '';
-            foreach ($apprenants as $item) {
-                $app = $item->apprenants;
-                $id = optional($app)->id ?? optional($app)->id_apprenants ?? 'N/A';
-                $html .= "<div><span class='label label-primary'>{$id}</span></div>";
-            }
-
-            return $html;
+        $grid->column('apprenants.matricule', __('Matricule'))->display(function ($matricule) {
+            return $matricule ?? 'N/A';
         });
 
-        // 7. Colonne Matricule (filtrée strictement)
-        $grid->column('apprenants_matricules', __('Matricule'))->display(function () use ($etablissementAnneesId) {
-            $apprenants = Classeapprenant::with('apprenants')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId)
-                ->get()
-                ->sortBy(function ($item) {
-                    return optional($item->apprenants)->nom;
-                });
-
-            if ($apprenants->isEmpty()) return '-';
-
-            $html = '';
-            foreach ($apprenants as $item) {
-                $matricule = optional($item->apprenants)->matricule ?? 'N/A';
-                $html .= "<div><code>{$matricule}</code></div>";
-            }
-
-            return $html;
+        $grid->column('apprenants.nom', __('Nom'))->display(function ($nom) {
+            return $nom ?? 'N/A';
         });
 
-        // 8. Colonne Nom (filtrée strictement)
-        $grid->column('apprenants_noms', __('Nom'))->display(function () use ($etablissementAnneesId) {
-            $apprenants = Classeapprenant::with('apprenants')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId)
-                ->get()
-                ->sortBy(function ($item) {
-                    return optional($item->apprenants)->nom;
-                });
-
-            if ($apprenants->isEmpty()) return '<span class="text-muted">Aucun apprenant pour cette année</span>';
-
-            $html = '';
-            foreach ($apprenants as $item) {
-                $nom = optional($item->apprenants)->nom ?? '';
-                $html .= "<div><strong>{$nom}</strong></div>";
-            }
-
-            return $html;
+        $grid->column('apprenants.prenom', __('Prénom'))->display(function ($prenom) {
+            return $prenom ?? '';
         });
 
-        // 9. Colonne Prénom (filtrée strictement)
-        $grid->column('apprenants_prenoms', __('Prénom'))->display(function () use ($etablissementAnneesId) {
-            $apprenants = Classeapprenant::with('apprenants')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId)
-                ->get()
-                ->sortBy(function ($item) {
-                    return optional($item->apprenants)->nom;
-                });
-
-            if ($apprenants->isEmpty()) return '-';
-
-            $html = '';
-            foreach ($apprenants as $item) {
-                $prenom = optional($item->apprenants)->prenom ?? '';
-                $html .= "<div>{$prenom}</div>";
-            }
-
-            return $html;
+        $grid->column('apprenants.sexe', __('Sexe'))->display(function ($sexe) {
+            return $sexe ?? '-';
         });
+
+        $grid->column('classes.nom_classe', __('Classe'));
 
         return $grid;
     }

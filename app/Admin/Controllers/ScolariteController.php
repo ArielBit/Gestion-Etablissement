@@ -15,7 +15,7 @@ class ScolariteController extends AdminController
      *
      * @var string
      */
-    protected $title = 'Scolarite';
+    protected $title = 'Scolarites';
 
     /**
      * Make a grid builder.
@@ -73,7 +73,7 @@ class ScolariteController extends AdminController
 
        // Remplacement par un select classique
     $form->select('classes', __('Classe'))->options([
-       'Sixième (6ème)' => 'Sixième (6ème)',
+    'Sixième (6ème)' => 'Sixième (6ème)',
     'Cinquième (5ème)' => 'Cinquième (5ème)',
     'Quatrième (4ème)' => 'Quatrième (4ème)',
     'Troisième (3ème)' => 'Troisième (3ème)',

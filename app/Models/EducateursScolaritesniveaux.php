@@ -33,7 +33,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class EducateursScolaritesniveaux extends Model
 {
-	use SoftDeletes;
+	//use SoftDeletes;
 	protected $table = 'educateurs_scolaritesniveaux';
 	protected $primaryKey = 'id_educateurs_scolaritesniveaux';
 
@@ -68,4 +68,9 @@ public function scolarites()
 {
     return $this->belongsTo(Scolarite::class,'scolarites_niveaux_id','id_scolarites');
 }
+
+public function etablissementannee()
+    {
+        return $this->belongsTo(Etablissementannee::class, 'etablissementannees_id');
+    }
 }

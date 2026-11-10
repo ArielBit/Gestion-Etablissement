@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $deleted_by
  * 
  * @property Collection|Matiere[] $matieres
- * @property Collection|Classe[] $classes
+ * @property Collection|Classe[] $classe
  * @property Collection|EducateursScolaritesniveaux[] $educateursScolaritesniveaux
  *
  * @package App\Models
@@ -55,7 +55,7 @@ class Scolarite extends Model
 		return $this->hasMany(Matiere::class, 'scolarites_id');
 	}
 
-	public function classes()
+	public function classe()
 	{
 		return $this->hasMany(Classe::class, 'scolarites_niveaux_id');
 	}

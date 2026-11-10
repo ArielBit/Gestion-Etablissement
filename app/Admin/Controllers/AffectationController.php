@@ -43,14 +43,6 @@ $grid->column('matieres.nom_matiere', __('Matière'));
 
 $grid->column('classes.nom_classe', __('Classe'));
 
-$grid->column('educateur', __('Educateur'))->display(function () {
-    $personnel = optional($this->educateurs)->personnel;
-
-    return $personnel
-        ? $personnel->nom . ' ' . $personnel->prenom
-        : '-';
-});
-
         $grid->column('annee_scolaire', 'Année scolaire')
     ->display(function () {
         return optional(
@@ -130,19 +122,6 @@ $grid->column('educateur', __('Educateur'))->display(function () {
             )
             ->rules('required');
 
-        $form->select('educateurs_id', __('Educateur'))
-            ->options(
-                \App\Models\Educateur::with('personnel')
-                    ->get()
-                    ->mapWithKeys(function ($item) {
-                        $nom = optional($item->personnel)->nom ?? '';
-                        $prenom = optional($item->personnel)->prenom ?? '';
-                        return [
-                            $item->id_educateurs => trim($nom . ' ' . $prenom)
-                        ];
-                    })
-            )
-            ->rules('required');
 
         $form->select('matieres_id', 'Matières')
             ->options(\App\Models\Matiere::pluck('nom_matiere', 'id_matieres'));

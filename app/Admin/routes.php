@@ -67,15 +67,13 @@ Route::group([
 
       //Personnels-Administrations
       $router->resource('personnels', PersonnelController::class);
-       $router->resource('educateurs', EducateurController::class);
+      $router->resource('educateurs', EducateurController::class);
       $router->resource('professeurs', ProfesseurController::class);
       $router->resource('vigiles', VigileController::class);
-        $router->resource('personnels-nettoyages', PersonnelsNettoyageController::class);
-
+      $router->resource('personnels-nettoyages', PersonnelsNettoyageController::class);
+      $router->resource('educateurs-scolaritesniveaux', EducateursScolaritesniveauxController::class);
          
           
-          
-
         /*
         **EDUCATEUR
         */
@@ -126,6 +124,131 @@ $router->get('api/fonctions', function (Request $request) {
     ];
 
     return $mapping[$q] ?? [];
+});
+
+//Filtrage des classes
+
+$router->get('api/classes', function (\Illuminate\Http\Request $request) {
+
+    $niveau = \App\Models\Scolarite::find($request->get('q'));
+
+    if (!$niveau) {
+        return [];
+    }
+
+    // Correspondance entre les niveaux et les classes
+    $correspondances = [
+
+        'Sixième (6ème)' => [
+            'Sixième 1 (6ème 1)',
+            'Sixième 2 (6ème 2)',
+            'Sixième 3 (6ème 3)',
+        ],
+
+        'Cinquième (5ème)' => [
+            'Cinquième 1 (5ème 1)',
+            'Cinquième 2 (5ème 2)',
+            'Cinquième 3 (5ème 3)',
+        ],
+
+        'Quatrième (4ème)' => [
+            'Quatrième 1 (4ème 1)',
+            'Quatrième 2 (4ème 2)',
+            'Quatrième 3 (4ème 3)',
+        ],
+
+        'Troisième (3ème)' => [
+            'Troisième 1 (3ème 1)',
+            'Troisième 2 (3ème 2)',
+            'Troisième 3 (3ème 3)',
+        ],
+
+        'Seconde A1 (2nde A1)' => [
+            'Seconde A1-1 (2nde A1-1)',
+            'Seconde A1-2 (2nde A1-2)',
+            'Seconde A1-3 (2nde A1-3)',
+        ],
+
+        'Seconde A2 (2nde A2)' => [
+            'Seconde A2-1 (2nde A2-1)',
+            'Seconde A2-2 (2nde A2-2)',
+            'Seconde A2-3 (2nde A2-3)',
+        ],
+
+        'Seconde B (2nde B)' => [
+            'Seconde B-1 (2nde B-1)',
+            'Seconde B-2 (2nde B-2)',
+            'Seconde B-3 (2nde B-3)',
+        ],
+
+        'Seconde C (2nde C)' => [
+            'Seconde C-1 (2nde C-1)',
+            'Seconde C-2 (2nde C-2)',
+            'Seconde C-3 (2nde C-3)',
+        ],
+
+        'Seconde D (2nde D)' => [
+            'Seconde D-1 (2nde D-1)',
+            'Seconde D-2 (2nde D-2)',
+            'Seconde D-3 (2nde D-3)',
+        ],
+
+        'Seconde E (2nde E)' => [
+            'Seconde E-1 (2nde E-1)',
+            'Seconde E-2 (2nde E-2)',
+            'Seconde E-3 (2nde E-3)',
+        ],
+
+        'Seconde F1 (2nde F1)' => [
+            'Seconde F1-1 (2nde F1-1)',
+            'Seconde F1-2 (2nde F1-2)',
+            'Seconde F1-3 (2nde F1-3)',
+        ],
+
+        'Seconde F2 (2nde F2)' => [
+            'Seconde F2-1 (2nde F2-1)',
+            'Seconde F2-2 (2nde F2-2)',
+            'Seconde F2-3 (2nde F2-3)',
+        ],
+
+        'Seconde G1 (2nde G1)' => [
+            'Seconde G1-1 (2nde G1-1)',
+            'Seconde G1-2 (2nde G1-2)',
+            'Seconde G1-3 (2nde G1-3)',
+        ],
+
+        'Seconde G2 (2nde G2)' => [
+            'Seconde G2-1 (2nde G2-1)',
+            'Seconde G2-2 (2nde G2-2)',
+            'Seconde G2-3 (2nde G2-3)',
+        ],
+
+    ];
+
+    // Ajouter les niveaux Première et Terminale
+    $series = ['A1', 'A2', 'B', 'C', 'D', 'E', 'F1', 'F2', 'G1', 'G2'];
+
+    foreach ($series as $serie) {
+
+        $correspondances["Première {$serie} (1ère {$serie})"] = [
+            "Première {$serie}-1 (1ère {$serie}-1)",
+            "Première {$serie}-2 (1ère {$serie}-2)",
+            "Première {$serie}-3 (1ère {$serie}-3)",
+        ];
+
+        $correspondances["Terminale {$serie} (Tle {$serie})"] = [
+            "Terminale {$serie}-1 (Tle {$serie}-1)",
+            "Terminale {$serie}-2 (Tle {$serie}-2)",
+            "Terminale {$serie}-3 (Tle {$serie}-3)",
+        ];
+    }
+
+    // Récupérer les classes correspondant au niveau sélectionné
+    $nomsClasses = $correspondances[$niveau->classes] ?? [];
+
+    // Retourner les options au format attendu par Laravel-Admin
+    return array_combine($nomsClasses, $nomsClasses) ?: [];
+
 });
 
 });

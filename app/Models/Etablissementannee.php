@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property Collection|Paiement[] $paiements
  * @property Collection|ParametresGlobaux[] $parametres_globauxes
  * @property Collection|PeriodesScolaire[] $periodes_scolaires
+ * @property Collection|EducateursScolaritesniveaux[] $educateursScolaritesniveaux
  *
  * @package App\Models
  */
@@ -123,5 +124,10 @@ class Etablissementannee extends Model
 	public function periodes_scolaires()
 	{
 		return $this->hasMany(PeriodesScolaire::class, 'anneescolaire_id');
+	}
+
+	public function educateursScolaritesniveaux()
+	{
+		return $this->hasMany(EducateursScolaritesniveaux::class, 'scolarites_niveaux_id');
 	}
 }
