@@ -72,7 +72,7 @@ class ParametresGlobaux extends Model
 	];
 
 	
-    public function etablissementAnnee()
+    public function etablissementAnnee() 
     {
         return $this->belongsTo(Etablissementannee::class, 'etablissementannees_id', 'id_etablissementannees');
 		
@@ -84,7 +84,7 @@ class ParametresGlobaux extends Model
     }
 
     
-    public function anneeScolaire()
+   public function anneeScolaire()
     { 
         return $this->belongsTo(AnneeScolaire::class, 'anneescolaire_id', 'id_anneescolaires');
     }

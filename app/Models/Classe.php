@@ -22,10 +22,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $deleted_by
- * @property string|null type_cl
+ * @property string|null $type_cl
+ * @property int $scolarites_niveaux_id
  * 
  * @property Collection|Affectation[] $affectations
  * @property Collection|Apprenant[] $apprenants
+ * @property Scolarite $scolarites
  *
  * @package App\Models
  */
@@ -38,7 +40,8 @@ class Classe extends Model
 	protected $casts = [
 		'created_by' => 'int',
 		'updated_by' => 'int',
-		'deleted_by' => 'int'
+		'deleted_by' => 'int',
+		'scolarites_niveaux_id'
 	];
 
 	protected $fillable = [
@@ -47,8 +50,14 @@ class Classe extends Model
 		'created_by',
 		'updated_by',
 		'deleted_by',
+		'scolarites_niveaux_id'
 		
 	];
+
+	public function scolarites()
+	{
+		return $this->belongsTo(Scolarite::class, 'scolarites_niveaux_id');
+	}
 
 	public function affectations()
 	{

@@ -31,7 +31,7 @@ class BulletinController extends AdminController
             'Année scolaire liée' => optional($parametreGlobal?->etablissementAnnees)->toArray()
         ]);*/
         
-    $etablissementAnneesId = $parametreGlobal?->etablissementannees_id;
+    $etablissementAnneesId = $parametreGlobal?->anneescolaire_id;
 
     if ($etablissementAnneesId) {
         $grid->model()->where('etablissementannees_id', $etablissementAnneesId);
@@ -246,7 +246,7 @@ public function calculerMoyennesGenerales(Request $request)
 
     // 1. Récupérer l'année active via les paramètres globaux
     $parametreGlobal = ParametresGlobaux::first();
-    $etablissementAnneesId = $parametreGlobal?->etablissementannees_id ?? null;
+    $etablissementAnneesId = $parametreGlobal?->anneescolaire_id ?? null;
 
     $selectedClasse = \App\Models\Classe::find($classesId);
     $typeClasse = strtolower($selectedClasse?->type_cl ?? $selectedClasse?->systeme ?? 'trimestre');

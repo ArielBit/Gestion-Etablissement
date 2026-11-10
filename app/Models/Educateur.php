@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $deleted_by
  * @property int $personnels_id
  * 
- * @property Collection|Affectation[] $affectations
+ * @property Collection|EducateursScolaritesniveaux[] $educateursScolaritesniveaux
  *
  * @package App\Models
  */
@@ -49,13 +49,14 @@ class Educateur extends Model
 		'personnels_id'
 	];
 
-	public function affectations()
-	{
-		return $this->hasMany(Affectation::class, 'educateurs_id');
-	}
 
 	public function personnel()
 	{
 		return $this->belongsTo(Personnel::class, 'personnels_id');
+	}
+
+	public function educateursScolaritesniveaux()
+	{
+		return $this->hasMany(EducateursScolaritesniveaux::class, 'educateurs_id');
 	}
 }

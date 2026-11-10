@@ -122,8 +122,8 @@ class ParametresGlobauxController extends AdminController
         $form->text('nom_p', __('Nom de l\'Établissement'))
             ->rules('required')
             ->default(function ($form) {
-                return $form->model()->etablissementAnnee?->etablissement?->nom 
-                    ?? Auth::user()->etablissement?->nom 
+                return $form->model()->etablissementAnnee?->etablissement?->nom_etablissement
+                    ?? Auth::user()->etablissement?->nom_etablissement
                     ?? '';
             });
 
