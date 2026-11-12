@@ -22,32 +22,48 @@ class BulletinsMatiereController extends AdminController
     {
         $grid = new Grid(new Affectation());
 
+        // 1. Récupérer l'année scolaire active depuis les paramètres globaux
+        $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnneeId = $parametreGlobal?->anneescolaire_id;
+
+        // FILTRAGE STRICT : On ne sélectionne que les lignes liées à l'année active
+        if ($etablissementAnneeId) {
+            $grid->model()->where('etablissementannees_id', $etablissementAnneeId);
+        } else {
+            $grid->model()->whereRaw('1 = 0');
+        }
+
         $currentUser = Auth::guard('admin')->user();
         $professeur = null;
         $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
 
-        // 1. Filtrage selon le profil (Admin vs Professeur)
+        // 2. Filtrage selon le profil (Admin vs Professeur)
         if (!$isAdmin && $currentUser) {
-            $professeur = Professeur::where('matricule', $currentUser->username)->first();
-            if ($professeur) {
+            $professeur = Professeur::where('matricule', $currentUser->username)
+                ->orWhere('id_professeurs', $currentUser->id ?? 0)
+                ->first();
+
+            if ($professeur && $etablissementAnneeId) {
                 $grid->model()->where('professeurs_id', $professeur->id_professeurs);
             } else {
                 $grid->model()->whereRaw('1 = 0');
             }
         }
 
-        // 2. Traitement du filtre par classe
+        // 3. Traitement du filtre par classe
         $selectedClassId = request('classes_id');
         if ($selectedClassId) {
             $grid->model()->where('classes_id', $selectedClassId);
         }
 
-        // 3. Récupération des paramètres globaux (Établissement, Année, Période)
-        $parametreGlobal = ParametresGlobaux::first();
-        $etablissementAnnee = $parametreGlobal?->etablissementannee;
+        // Charger les relations pour l'optimisation
+        $grid->model()->with(['classes', 'matieres']);
+
+        // 4. Récupération des libellés sécurisés pour l'en-tête
+        $etablissementAnnee = $parametreGlobal?->etablissementAnnee;
         $etablissementAnnees = $parametreGlobal?->etablissementAnnees;
-        $nomEtablissement = optional($etablissementAnnee?->etablissement)->nom_etablissement ?? 'Établissement Scolaire';
-        $anneeScolaire = optional($etablissementAnnees?->anneeScolaire)->annee_scolaire ?? 'Année active';
+        $nomEtablissement = htmlspecialchars(optional($etablissementAnnee?->etablissement)->nom_etablissement ?? 'Établissement Scolaire', ENT_QUOTES, 'UTF-8');
+        $anneeScolaire = htmlspecialchars(optional($etablissementAnnees?->anneeScolaire)->annee_scolaire ?? 'Année active', ENT_QUOTES, 'UTF-8');
 
         $selectedClasse = $selectedClassId ? \App\Models\Classe::find($selectedClassId) : null;
         
@@ -63,24 +79,30 @@ class BulletinsMatiereController extends AdminController
                 $nomPeriode = $periodeObj->nom_peri ?? $periodeObj->libelle ?? $periodeObj->titre ?? 'Période active';
             }
         }
+        $nomPeriode = htmlspecialchars($nomPeriode, ENT_QUOTES, 'UTF-8');
 
-        // 4. Barre d'outils avec les grands titres et sélecteurs de classes
-        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode) {
-            $query = Affectation::with('classes', 'matieres');
+        // 5. Barre d'outils avec les grands titres et sélecteurs de classes
+        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $nomEtablissement, $anneeScolaire, $selectedClasse, $nomPeriode, $etablissementAnneeId) {
+            $query = Affectation::with('classes', 'matieres')->whereNotNull('classes_id');
             if (!$isAdmin && $professeur) {
                 $query->where('professeurs_id', $professeur->id_professeurs);
+            }
+            if ($etablissementAnneeId) {
+                $query->where('etablissementannees_id', $etablissementAnneeId);
             }
             $affectations = $query->get();
             $baseUrl = request()->url();
 
             $html = '<div style="margin-bottom: 20px; background: #ffffff; padding: 15px; border-radius: 5px; border: 1px solid #e3e3e3; box-shadow: 0 1px 1px rgba(0,0,0,.05);">';
+            
             // BOUTON CALCULER LES MOYENNES
             if ($selectedClassId) {
                 $calculUrl = admin_url('bulletins-matieres/calculer?classes_id=' . $selectedClassId);
-                $html .= "<div><a href='{$calculUrl}' class='btn btn-sm btn-info' data-pjax='0'><i class='fa fa-calculator'></i> Calculer les moyennes</a></div>";
+                $html .= "<div style='margin-bottom: 15px;'><a href='{$calculUrl}' class='btn btn-sm btn-info' data-pjax='0'><i class='fa fa-calculator'></i> Calculer les moyennes</a></div>";
             }
+
             // Grands Titres
-            $classeNom = $selectedClasse ? $selectedClasse->nom_classe : 'Toutes les classes';
+            $classeNom = htmlspecialchars($selectedClasse ? $selectedClasse->nom_classe : 'Toutes les classes', ENT_QUOTES, 'UTF-8');
             $html .= '<h3 style="margin-top: 0; color: #3c8dbc; font-weight: bold; border-bottom: 2px solid #3c8dbc; padding-bottom: 8px;">🏫 ' . $nomEtablissement . '</h3>';
             $html .= '<div style="display: flex; gap: 25px; font-size: 14px; margin-bottom: 15px; flex-wrap: wrap; color: #444;">';
             $html .= '<span><strong>📅 Année :</strong> ' . $anneeScolaire . '</span>';
@@ -95,12 +117,19 @@ class BulletinsMatiereController extends AdminController
             $html .= "<a href='{$baseUrl}' class='btn btn-sm {$activeAll}'>{$labelTous}</a>";
 
             $classProcessed = [];
-            foreach ($affectations as $aff) {
-                if (in_array($aff->classes_id, $classProcessed)) continue;
+            $uniqueAffectations = $affectations->unique('classes_id');
+            foreach ($uniqueAffectations as $aff) {
+                if (!$aff->classes_id || in_array($aff->classes_id, $classProcessed)) continue;
                 $classProcessed[] = $aff->classes_id;
 
-                $count = Classeapprenant::where('classes_id', $aff->classes_id)->count();
-                $nom = optional($aff->classes)->nom_classe;
+                $count = Classeapprenant::where('classes_id', $aff->classes_id)
+                    ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                        $q->where('etablissementannees_id', $etablissementAnneeId);
+                    })->count();
+
+                $nom = htmlspecialchars(optional($aff->classes)->nom_classe ?? '', ENT_QUOTES, 'UTF-8');
+                if (!$nom) continue;
+
                 $active = ($selectedClassId == $aff->classes_id) ? 'btn-primary' : 'btn-default';
                 $url = $baseUrl . '?classes_id=' . $aff->classes_id;
 
@@ -116,20 +145,24 @@ class BulletinsMatiereController extends AdminController
         $grid->disableCreateButton();
         $grid->disableActions();
 
-        // 5. Colonne Classe
+        // 6. Colonne Classe
         $grid->column('classes.nom_classe', __('Classe'))->display(function($value) {
             return "<span class='label label-info' style='font-size: 12px;'>{$value}</span>";
         });
 
-        // 6. Colonne Matière
+        // 7. Colonne Matière
         $grid->column('matieres.nom_matiere', __('Matière'))->display(function($value) {
-            return "<span class='label label-success' style='font-size: 12px;'>{$value}</span>";
+            $nomMat = $value ?? optional($this->matieres)->libelle ?? optional($this->matieres)->nom;
+            return "<span class='label label-success' style='font-size: 12px;'>{$nomMat}</span>";
         });
 
-        // 7. Colonne Élève (Nom, Prénom, Matricule regroupés ligne par ligne)
-        $grid->column('eleve_bloc', __('Élève'))->display(function () {
+        // 8. Colonne Élève
+        $grid->column('eleve_bloc', __('Élève'))->display(function () use ($etablissementAnneeId) {
             $apprenants = Classeapprenant::with('apprenants')
                 ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })
                 ->get()
                 ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
@@ -150,15 +183,21 @@ class BulletinsMatiereController extends AdminController
             return $html;
         });
 
-        // 8. Colonne Moyenne (liée aux bulletins de la matière et de l'élève)
-        $grid->column('moyenne_bloc', __('Moyenne'))->display(function () {
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+        // 9. Colonne Moyenne
+        $grid->column('moyenne_bloc', __('Moyenne'))->display(function () use ($etablissementAnneeId) {
+            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })->get();
             $matiereId = $this->matieres_id;
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
                 $bulletin = BulletinsMatiere::where('matieres_id', $matiereId)
                     ->where('classeapprenants_id', $item->id_classeapprenants)
+                    ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                        $q->where('etablissementannees_id', $etablissementAnneeId);
+                    })
                     ->first();
 
                 $moy = $bulletin?->moyenne ?? '-';
@@ -177,15 +216,21 @@ class BulletinsMatiereController extends AdminController
             return $html;
         });
 
-        // 9. Colonne Rang
-        $grid->column('rang_bloc', __('Rang'))->display(function () {
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+        // 10. Colonne Rang
+        $grid->column('rang_bloc', __('Rang'))->display(function () use ($etablissementAnneeId) {
+            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })->get();
             $matiereId = $this->matieres_id;
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
                 $bulletin = BulletinsMatiere::where('matieres_id', $matiereId)
                     ->where('classeapprenants_id', $item->id_classeapprenants)
+                    ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                        $q->where('etablissementannees_id', $etablissementAnneeId);
+                    })
                     ->first();
 
                 $rang = $bulletin?->rang ? "<strong>{$bulletin->rang}</strong>" : '-';
@@ -197,15 +242,21 @@ class BulletinsMatiereController extends AdminController
             return $html;
         });
 
-        // 10. Colonne Appréciation
-        $grid->column('appreciation_bloc', __('Appréciation'))->display(function () {
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+        // 11. Colonne Appréciation
+        $grid->column('appreciation_bloc', __('Appréciation'))->display(function () use ($etablissementAnneeId) {
+            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })->get();
             $matiereId = $this->matieres_id;
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
                 $bulletin = BulletinsMatiere::where('matieres_id', $matiereId)
                     ->where('classeapprenants_id', $item->id_classeapprenants)
+                    ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                        $q->where('etablissementannees_id', $etablissementAnneeId);
+                    })
                     ->first();
 
                 $app = $bulletin?->appreciation ?: '<span class="text-muted" style="font-style: italic;">-</span>';
@@ -220,22 +271,36 @@ class BulletinsMatiereController extends AdminController
         return $grid;
     }
 
-    //Calcule de la moyenne
+    /**
+     * Calcule et enregistre les moyennes de la classe pour l'année scolaire active.
+     */
 
     public function calculerMoyennes(Request $request)
     {
         $classesId = $request->get('classes_id');
         if (!$classesId) {
-            admin_toastr('Veuillez d\'abord sélectionner une classe.', 'error');
+            admin_toastr('Veuillez d\'abord selectionner une classe.', 'error');
             return redirect(admin_url('bulletins-matieres'));
         }
 
         $parametreGlobal = ParametresGlobaux::first();
-        $etablissementAnneeId = $parametreGlobal?->etablissementannees_id;
+        // Correction de la propriété pour correspondre au reste de l'application
+        $etablissementAnneeId = $parametreGlobal?->anneescolaire_id;
 
-        // Récupérer toutes les affectations (matières) et tous les élèves de la classe
-        $affectations = Affectation::where('classes_id', $classesId)->get();
-        $apprenants = Classeapprenant::where('classes_id', $classesId)->get();
+        if (!$etablissementAnneeId) {
+            admin_toastr('Erreur : Aucune annee scolaire active n\'est définie.', 'error');
+            return redirect(admin_url('bulletins-matieres?classes_id=' . $classesId));
+        }
+
+        // Récupérer les affectations de la classe pour l'année active
+        $affectations = Affectation::where('classes_id', $classesId)
+            ->where('etablissementannees_id', $etablissementAnneeId)
+            ->get();
+
+        // Récupérer les élèves de la classe STRICTEMENT pour l'année active
+        $apprenants = Classeapprenant::where('classes_id', $classesId)
+            ->where('etablissementannees_id', $etablissementAnneeId)
+            ->get();
 
         foreach ($affectations as $aff) {
             $moyennesEleves = [];
@@ -244,6 +309,7 @@ class BulletinsMatiereController extends AdminController
             foreach ($apprenants as $app) {
                 $evaluations = Evaluation::where('affectations_id', $aff->id_affectations)
                     ->where('classeapprenants_id', $app->id_classeapprenants)
+                    ->where('etablissementannees_id', $etablissementAnneeId)
                     ->get();
 
                 if ($evaluations->isNotEmpty()) {
@@ -255,7 +321,7 @@ class BulletinsMatiereController extends AdminController
                 $moyennesEleves[$app->id_classeapprenants] = $moyenne;
             }
 
-            /// 2. Calcul des rangs basés sur les moyennes décroissantes
+            // 2. Calcul des rangs basés sur les moyennes décroissantes
             $valides = array_filter($moyennesEleves, fn($m) => $m !== null);
             arsort($valides);
 
@@ -270,8 +336,7 @@ class BulletinsMatiereController extends AdminController
                     $currentRank = $index;
                 }
                 
-                // Formatage : "1er" pour le premier, sinon "2e", "3e", etc.
-                $suffixe = ($currentRank == 1) ? 'er' : 'ème';
+                $suffixe = ($currentRank == 1) ? 'er' : 'eme';
                 $ranks[$eleveId] = $currentRank . $suffixe;
                 
                 $previousScore = $score;
@@ -293,17 +358,16 @@ class BulletinsMatiereController extends AdminController
                     } elseif ($moy > 14 && $moy <= 16) {
                         $appreciation = 'Bien';
                     } else {
-                        $appreciation = 'Très bien';
+                        $appreciation = 'Tres bien';
                     }
                 }
 
-                    // Récupérer une évaluation valide ou ignorer/gérer le cas si aucune n'existe
-                $evaluationRef = Evaluation::where('affectations_id', $aff->id_affectations)->first();
+                $evaluationRef = Evaluation::where('affectations_id', $aff->id_affectations)
+                    ->where('etablissementannees_id', $etablissementAnneeId)
+                    ->first();
 
-                // Si l'évaluation est obligatoire en base mais qu'il n'y en a pas, 
-                // tu peux soit créer une ligne par défaut, soit sauter l'enregistrement pour cette matière :
                 if (!$evaluationRef) {
-                    continue; // Passe à la matière suivante si aucune évaluation n'existe
+                    continue; 
                 }
 
                 BulletinsMatiere::updateOrCreate(
@@ -311,7 +375,6 @@ class BulletinsMatiereController extends AdminController
                         'matieres_id' => $aff->matieres_id,
                         'classeapprenants_id' => $app->id_classeapprenants,
                         'etablissementannees_id' => $etablissementAnneeId,
-                        // Si evaluations_id fait partie de la clé unique de recherche :
                         'evaluations_id' => $evaluationRef->id_evaluations, 
                     ],
                     [
@@ -324,7 +387,9 @@ class BulletinsMatiereController extends AdminController
             }
         }
 
-        admin_toastr('Calcul des moyennes, appréciations et rangs effectué avec succès !', 'success');
-        return redirect(admin_url('bulletins-matieres?classes_id=' . $classesId));
+        admin_toastr('Calcul des moyennes effectue avec succes !', 'success');
+        
+        // Redirection classique sans rechargement PJAX en arrière-plan pour éviter les erreurs de parsing JS
+        return response()->redirectTo(admin_url('bulletins-matieres?classes_id=' . $classesId))->header('X-PJAX', '');
     }
 }

@@ -1,12 +1,14 @@
 <?php
 
 namespace App\Admin\Controllers;
+
 use Encore\Admin\Admin;
 use App\Models\Evaluation;
 use App\Models\Affectation;
 use App\Models\Professeur;
 use App\Models\Classeapprenant;
 use App\Models\ParametresGlobaux;
+use App\Models\Etablissementannee;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Grid;
 use Encore\Admin\Form;
@@ -16,12 +18,11 @@ use Illuminate\Http\Request;
 use Encore\Admin\Layout\Content;
 use App\Models\PeriodesScolaire;
 
-
 class EvaluationController extends AdminController
 {
     protected $title = 'Gestion des Notes par Élève';
 
-  public function show($id, $content = null)
+    public function show($id, $content = null)
     {
         return redirect(admin_url('evaluations'));
     }
@@ -35,44 +36,65 @@ class EvaluationController extends AdminController
     {
         $grid = new Grid(new Affectation());
 
+        // 1. Récupérer l'ID de l'année scolaire active globale et son libellé
+         $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnneesId = $parametreGlobal?->anneescolaire_id;
+        
+        $anneeActiveLibelle = 'Non définie';
+        if ($etablissementAnneesId) {
+            $anneeActive = $parametreGlobal?->etablissementAnnees;
+            $anneeActiveLibelle = optional($anneeActive?->anneeScolaire)->annee_scolaire ?? 'Année active';
+        }
+
+        // FILTRE STRICT : On ne sélectionne que les affectations liées à l'année active
+        if ($etablissementAnneesId) {
+            $grid->model()->where('etablissementannees_id', $etablissementAnneesId);
+        } else {
+            $grid->model()->whereRaw('1 = 0');
+        }
+
         $currentUser = Auth::guard('admin')->user();
         $professeur = null;
         $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+        $classeIdsProfesseur = [];
 
-        // 1. Filtrage selon le profil (Admin vs Professeur)
+        // 2. Filtrage selon le profil (Admin vs Professeur)
         if (!$isAdmin && $currentUser) {
             $professeur = Professeur::where('matricule', $currentUser->username)->first();
 
-            if ($professeur) {
+            if ($professeur && $etablissementAnneesId) {
+                $classeIdsProfesseur = Affectation::where('professeurs_id', $professeur->id_professeurs)
+                    ->where('etablissementannees_id', $etablissementAnneesId)
+                    ->whereNotNull('classes_id')
+                    ->pluck('classes_id')
+                    ->unique()
+                    ->toArray();
+
                 $grid->model()->where('professeurs_id', $professeur->id_professeurs);
             } else {
                 $grid->model()->whereRaw('1 = 0');
             }
         }
 
-        // 2. Traitement du filtre par classe
+        // 3. Traitement du filtre par classe
         $selectedClassId = request('classes_id');
         if ($selectedClassId) {
             $grid->model()->where('classes_id', $selectedClassId);
         }
 
-       // Récupération des paramètres globaux et du type de la classe sélectionnée
-        $parametreGlobal = ParametresGlobaux::first();
+        // Détermination de la période active (Trimestre / Semestre)
         $selectedClasse = $selectedClassId ? \App\Models\Classe::find($selectedClassId) : null;
-        
         $periodeActiveHtml = '';
         if ($selectedClasse) {
             $typeClasse = strtolower($selectedClasse->type_cl ?? $selectedClasse->systeme ?? 'trimestre');
             
-            // On détermine quel ID chercher dans les paramètres globaux
             $periodeIdToFind = str_contains($typeClasse, 'semestre') 
                 ? ($parametreGlobal?->semestres_id ?? $parametreGlobal?->periodes_scolaires_id)
                 : ($parametreGlobal?->trimestres_id ?? $parametreGlobal?->periodes_scolaires_id);
 
             $nomPeriode = 'Non défini';
             if ($periodeIdToFind) {
-                // On cherche directement dans le modèle PeriodesScolaire
-                $periodeObj = \App\Models\PeriodesScolaire::find($periodeIdToFind);
+                $periodeObj = PeriodesScolaire::find($periodeIdToFind);
                 $nomPeriode = $periodeObj->nom_peri ?? $periodeObj->libelle ?? $periodeObj->titre ?? 'Période active';
             }
 
@@ -83,40 +105,64 @@ class EvaluationController extends AdminController
             }
         }
 
-        // 3. Barre d'outils (Boutons de classes + Bouton Noter global + Indicateur de période)
-        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $periodeActiveHtml) {
-            $query = Affectation::with('classes');
+        // 4. Barre d'outils (Année active, Boutons de classes, Alerte si vide, Indicateur de période & Bouton Noter)
+        $grid->tools(function (Grid\Tools $tools) use ($isAdmin, $professeur, $selectedClassId, $periodeActiveHtml, $etablissementAnneesId, $anneeActiveLibelle, $classeIdsProfesseur) {
+            $query = Affectation::with('classes')->whereNotNull('classes_id');
             if (!$isAdmin && $professeur) {
                 $query->where('professeurs_id', $professeur->id_professeurs);
+            }
+            if ($etablissementAnneesId) {
+                $query->where('etablissementannees_id', $etablissementAnneesId);
             }
             $affectations = $query->get();
             $baseUrl = request()->url();
 
-            $html = '<div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">';
+            $html = '<div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
+            
+            // Zone d'affichage de l'Année Scolaire Active
+            $html .= '<div>';
+            $html .= '<span class="label label-success" style="font-size: 13px; padding: 7px 12px; display: inline-block;">';
+            $html .= '<i class="fa fa-calendar"></i> Année Scolaire Active : <strong>' . htmlspecialchars($anneeActiveLibelle) . '</strong>';
+            $html .= '</span>';
+            $html .= '</div>';
+
+            // Message d'alerte si aucune classe n'est attribuée au professeur pour cette année active
+            if (!$isAdmin && $professeur && empty($classeIdsProfesseur)) {
+                $html .= '</div>';
+                $html .= '<div class="alert alert-warning" style="margin-top: 10px; margin-bottom: 10px;">';
+                $html .= '<i class="fa fa-exclamation-triangle"></i> Aucune classe ne vous a été attribuée pour l\'année scolaire active (<strong>' . htmlspecialchars($anneeActiveLibelle) . '</strong>).';
+                $html .= '</div>';
+                $tools->append($html);
+                return;
+            }
+
             $html .= '<div class="btn-group" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">';
 
-            // Bouton "Toutes les classes"
             $labelTous = $isAdmin ? 'Toutes les classes' : 'Toutes mes classes';
             $activeAll = empty($selectedClassId) ? 'btn-primary' : 'btn-default';
             $html .= "<a href='{$baseUrl}' class='btn btn-sm {$activeAll}'>{$labelTous}</a>";
 
-            foreach ($affectations as $aff) {
-                if (isset($classCounts[$aff->classes_id])) continue;
-                $count = Classeapprenant::where('classes_id', $aff->classes_id)->count();
-                $classCounts[$aff->classes_id] = $count;
+            $uniqueAffectations = $affectations->unique('classes_id');
+            foreach ($uniqueAffectations as $aff) {
+                if (!$aff->classes_id) continue;
+
+                $count = Classeapprenant::where('classes_id', $aff->classes_id)
+                    ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                        $q->where('etablissementannees_id', $etablissementAnneesId);
+                    })->count();
 
                 $nom = optional($aff->classes)->nom_classe;
+                if (!$nom) continue;
+
                 $active = ($selectedClassId == $aff->classes_id) ? 'btn-primary' : 'btn-default';
                 $url = $baseUrl . '?classes_id=' . $aff->classes_id;
 
                 $html .= "<a href='{$url}' class='btn btn-sm {$active}'>{$nom} <span class='badge bg-gray'>{$count}</span></a>";
             }
 
-            // Affichage du trimestre ou semestre actif à côté des boutons de classes
             $html .= $periodeActiveHtml;
             $html .= '</div>';
 
-            // BOUTON NOTER / SAISIE GLOBALE
             $saisieUrl = admin_url('evaluations/saisie-globale' . ($selectedClassId ? '?classes_id=' . $selectedClassId : ''));
             $html .= "<div><a href='{$saisieUrl}' class='btn btn-sm btn-success' data-pjax='0'><i class='fa fa-pencil-square-o'></i> Noter / Saisie globale</a></div>";
             $html .= '</div>';
@@ -124,8 +170,6 @@ class EvaluationController extends AdminController
             $tools->append($html);
         });
 
-        // ... (le reste de ton code de grille reste inchangé)
-        
         $grid->disableFilter();
         $grid->disableCreateButton();
         $grid->disableActions();
@@ -135,14 +179,17 @@ class EvaluationController extends AdminController
             return "<span class='label label-info' style='font-size: 12px;'>{$value}</span>";
         });
 
-        // 5. Colonne Élève (Nom, Prénom, Matricule regroupés)
-        $grid->column('eleve_bloc', __('Élève'))->display(function () {
+        // 5. Colonne Élève (filtrée par l'année active)
+        $grid->column('eleve_bloc', __('Élève'))->display(function () use ($etablissementAnneesId) {
             $apprenants = Classeapprenant::with('apprenants')
                 ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                    $q->where('etablissementannees_id', $etablissementAnneesId);
+                })
                 ->get()
                 ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
-            if ($apprenants->isEmpty()) return '-';
+            if ($apprenants->isEmpty()) return '<span class="text-muted">Aucun élève</span>';
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
@@ -159,10 +206,16 @@ class EvaluationController extends AdminController
             return $html;
         });
 
-        // 6. Colonne Intitulé & Type d'évaluation
-        $grid->column('type_evaluation_bloc', __('Type & Intitulé'))->display(function () {
+        // 6. Colonne Intitulé & Type d'évaluation (liée à l'affectation et l'élève de l'année active)
+        $grid->column('type_evaluation_bloc', __('Type & Intitulé'))->display(function () use ($etablissementAnneesId) {
             $affectationId = $this->id_affectations;
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+            $apprenants = Classeapprenant::with('apprenants')
+                ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                    $q->where('etablissementannees_id', $etablissementAnneesId);
+                })
+                ->get()
+                ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
@@ -186,46 +239,56 @@ class EvaluationController extends AdminController
             return $html;
         });
 
-       // 7. Colonne Notes
-    $grid->column('notes_bloc', __('Notes'))->display(function () {
-        $affectationId = $this->id_affectations;
-        $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+        // 7. Colonne Notes (liée à l'affectation et l'élève de l'année active)
+        $grid->column('notes_bloc', __('Notes'))->display(function () use ($etablissementAnneesId) {
+            $affectationId = $this->id_affectations;
+            $apprenants = Classeapprenant::with('apprenants')
+                ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                    $q->where('etablissementannees_id', $etablissementAnneesId);
+                })
+                ->get()
+                ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
-        $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
-        foreach ($apprenants as $item) {
-            $evaluations = Evaluation::where('affectations_id', $affectationId)
-                ->where('classeapprenants_id', $item->id_classeapprenants)
-                ->get();
+            $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+            foreach ($apprenants as $item) {
+                $evaluations = Evaluation::where('affectations_id', $affectationId)
+                    ->where('classeapprenants_id', $item->id_classeapprenants)
+                    ->get();
 
-            $html .= "<div style='border-bottom: 1px dashed #ddd; padding-bottom: 5px; min-height: 40px;'>";
-            if ($evaluations->isNotEmpty()) {
-                foreach ($evaluations as $ev) {
-                    $note = $ev->notes ?? 0;
-                    $badgeColor = $note < 10 ? 'danger' : 'success';
-                    
-                    // Lien personnalisé pour modifier (pointe par exemple vers ta saisie globale ou une action dédiée)
-                    $urlEdit = admin_url("evaluations/saisie-globale?classes_id=" . $this->classes_id);
-                    
-                    $html .= "<div style='display: flex; align-items: center; gap: 5px; margin-bottom: 2px;'>";
-                    $html .= "<span class='badge bg-{$badgeColor}' style='font-size: 12px;'>{$note}/20</span>";
-                    $html .= "<a href='{$urlEdit}' class='text-primary' title='Modifier'><i class='fa fa-edit'></i></a>";
-                    $html .= "</div>";
+                $html .= "<div style='border-bottom: 1px dashed #ddd; padding-bottom: 5px; min-height: 40px;'>";
+                if ($evaluations->isNotEmpty()) {
+                    foreach ($evaluations as $ev) {
+                        $note = $ev->notes ?? 0;
+                        $badgeColor = $note < 10 ? 'danger' : 'success';
+                        
+                        $urlEdit = admin_url("evaluations/saisie-globale?classes_id=" . $this->classes_id);
+                        
+                        $html .= "<div style='display: flex; align-items: center; gap: 5px; margin-bottom: 2px;'>";
+                        $html .= "<span class='badge bg-{$badgeColor}' style='font-size: 12px;'>{$note}/20</span>";
+                        $html .= "<a href='{$urlEdit}' class='text-primary' title='Modifier'><i class='fa fa-edit'></i></a>";
+                        $html .= "</div>";
+                    }
+                } else {
+                    $saisieUrl = admin_url("evaluations/saisie-globale?classes_id=" . $this->classes_id);
+                    $html .= "<a href='{$saisieUrl}' class='btn btn-xs btn-success' title='Noter'><i class='fa fa-plus'></i> Noter</a>";
                 }
-            } else {
-                // Si l'élève n'a pas encore de note, on l'oriente directement vers la saisie globale de sa classe
-                $saisieUrl = admin_url("evaluations/saisie-globale?classes_id=" . $this->classes_id);
-                $html .= "<a href='{$saisieUrl}' class='btn btn-xs btn-success' title='Noter'><i class='fa fa-plus'></i> Noter</a>";
+                $html .= "</div>";
             }
-            $html .= "</div>";
-        }
-        $html .= '</div>';
-        return $html;
-    });
+            $html .= '</div>';
+            return $html;
+        });
 
         // 8. Colonne Durée & Date
-        $grid->column('duree_date_bloc', __('Durée & Date'))->display(function () {
+        $grid->column('duree_date_bloc', __('Durée & Date'))->display(function () use ($etablissementAnneesId) {
             $affectationId = $this->id_affectations;
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+            $apprenants = Classeapprenant::with('apprenants')
+                ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                    $q->where('etablissementannees_id', $etablissementAnneesId);
+                })
+                ->get()
+                ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
@@ -250,9 +313,15 @@ class EvaluationController extends AdminController
         });
 
         // 9. Colonne Observations & Description
-        $grid->column('observations_bloc', __('Observations & Description'))->display(function () {
+        $grid->column('observations_bloc', __('Observations & Description'))->display(function () use ($etablissementAnneesId) {
             $affectationId = $this->id_affectations;
-            $apprenants = Classeapprenant::where('classes_id', $this->classes_id)->get();
+            $apprenants = Classeapprenant::with('apprenants')
+                ->where('classes_id', $this->classes_id)
+                ->when($etablissementAnneesId, function($q) use ($etablissementAnneesId) {
+                    $q->where('etablissementannees_id', $etablissementAnneesId);
+                })
+                ->get()
+                ->sortBy(fn($item) => optional($item->apprenants)->nom);
 
             $html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
             foreach ($apprenants as $item) {
@@ -278,96 +347,104 @@ class EvaluationController extends AdminController
         return $grid;
     }
 
-   /**
-     * Affiche la vue de saisie globale des notes pour le professeur connecté
-     */
-  public function saisieGlobale(Request $request, Content $content)
-{
-    $currentUser = Auth::guard('admin')->user();
-    $professeur = null;
-    $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+    public function saisieGlobale(Request $request, Content $content)
+    {
+        $currentUser = Auth::guard('admin')->user();
+        $professeur = null;
+        $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
 
-    if (!$isAdmin && $currentUser) {
-        $professeur = Professeur::where('matricule', $currentUser->username)->first();
-        if (!$professeur) {
-            abort(403, 'Accès non autorisé : profil professeur introuvable.');
+        $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnneeId = $parametreGlobal?->anneescolaire_id;
+
+        if (!$isAdmin && $currentUser) {
+            $professeur = Professeur::where('matricule', $currentUser->username)->first();
+            if (!$professeur) {
+                abort(403, 'Accès non autorisé : profil professeur introuvable.');
+            }
         }
-    }
 
-    $selectedClassId = $request->get('classes_id');
+        $selectedClassId = $request->get('classes_id');
 
-    // Sécurité en dur : si un professeur tente d'accéder à une classe qui ne lui appartient pas via l'URL
-    if (!$isAdmin && $selectedClassId) {
-        $appartientAuProf = Affectation::where('professeurs_id', $professeur->id_professeurs)
-            ->where('classes_id', $selectedClassId)
-            ->exists();
+        if (!$isAdmin && $selectedClassId) {
+            $appartientAuProf = Affectation::where('professeurs_id', $professeur->id_professeurs)
+                ->where('classes_id', $selectedClassId)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })
+                ->exists();
 
-        if (!$appartientAuProf) {
-            abort(403, 'Vous n\'avez pas accès à cette classe.');
+            if (!$appartientAuProf) {
+                abort(403, 'Vous n\'avez pas accès à cette classe pour l\'année active.');
+            }
         }
+
+        $affectationsQuery = Affectation::with(['classes', 'matieres']);
+        if (!$isAdmin && $professeur) {
+            $affectationsQuery->where('professeurs_id', $professeur->id_professeurs);
+        }
+        if ($etablissementAnneeId) {
+            $affectationsQuery->where('etablissementannees_id', $etablissementAnneeId);
+        }
+        if ($selectedClassId) {
+            $affectationsQuery->where('classes_id', $selectedClassId);
+        }
+        
+        $affectations = $affectationsQuery->get();
+
+        $periodeActiveId = $parametreGlobal?->periodes_scolaires_id ?? PeriodesScolaire::first()?->id_periodes_scolaires;
+
+        $classesAvecEleves = [];
+        foreach ($affectations as $aff) {
+            $eleves = Classeapprenant::with('apprenants')
+                ->where('classes_id', $aff->classes_id)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'id' => $item->id_classeapprenants,
+                        'nom' => optional($item->apprenants)->nom . ' ' . optional($item->apprenants)->prenom,
+                        'matricule' => optional($item->apprenants)->matricule ?? ''
+                    ];
+                });
+
+            $classesAvecEleves[$aff->id_affectations] = [
+                'classe_nom' => optional($aff->classes)->nom_classe,
+                'matiere_nom' => optional($aff->matieres)->nom_matiere ?? optional($aff->matieres)->libelle,
+                'eleves' => $eleves
+            ];
+        }
+
+        $content->header('Saisie Globale des Notes');
+        $content->description('Attribution des notes par groupes d\'élèves');
+        
+        $content->body(view('admin.evaluations.saisie_globale', compact(
+            'affectations', 
+            'classesAvecEleves', 
+            'etablissementAnneeId', 
+            'periodeActiveId',
+            'selectedClassId'
+        )));
+        
+        return $content;
     }
 
-    $affectationsQuery = Affectation::with(['classes', 'matieres']);
-    if (!$isAdmin && $professeur) {
-        $affectationsQuery->where('professeurs_id', $professeur->id_professeurs);
-    }
-    
-    if ($selectedClassId) {
-        $affectationsQuery->where('classes_id', $selectedClassId);
-    }
-    
-    $affectations = $affectationsQuery->get();
-
-    $parametreGlobal = ParametresGlobaux::first();
-    $etablissementAnneeId = $parametreGlobal?->etablissementannees_id;
-    $periodeActiveId = $parametreGlobal?->periodes_scolaires_id ?? \App\Models\PeriodesScolaire::first()?->id_periodes_scolaires;
-
-    $classesAvecEleves = [];
-    foreach ($affectations as $aff) {
-        $eleves = Classeapprenant::with('apprenants')
-            ->where('classes_id', $aff->classes_id)
-            ->get()
-            ->map(function($item) {
-                return [
-                    'id' => $item->id_classeapprenants,
-                    'nom' => optional($item->apprenants)->nom . ' ' . optional($item->apprenants)->prenom,
-                    'matricule' => optional($item->apprenants)->matricule ?? ''
-                ];
-            });
-
-        $classesAvecEleves[$aff->id_affectations] = [
-            'classe_nom' => optional($aff->classes)->nom_classe,
-            'matiere_nom' => optional($aff->matieres)->nom_matiere,
-            'eleves' => $eleves
-        ];
-    }
-
-    // Construction propre de la page personnalisée
-    $content->header('Saisie Globale des Notes');
-    $content->description('Attribution des notes par groupes d\'élèves');
-    
-    $content->body(view('admin.evaluations.saisie_globale', compact(
-        'affectations', 
-        'classesAvecEleves', 
-        'etablissementAnneeId', 
-        'periodeActiveId',
-        'selectedClassId'
-    )));
-    
-    return $content;
-}
-    /**
-     * Traite l'enregistrement global des notes soumises
-     */
-  public function storeSaisieGlobale(Request $request)
+    public function storeSaisieGlobale(Request $request)
     {
         $currentUser = Auth::guard('admin')->user();
         $isAdmin = $currentUser && ($currentUser->isRole('administrator') || $currentUser->isAdministrator());
+
+        $parametreGlobal = ParametresGlobaux::first();
+        $etablissementAnneeId = $parametreGlobal?->anneescolaire_id;
 
         if (!$isAdmin) {
             $professeur = Professeur::where('matricule', $currentUser->username)->first();
             $appartientAuProf = Affectation::where('id_affectations', $request->affectations_id)
                 ->where('professeurs_id', $professeur?->id_professeurs)
+                ->when($etablissementAnneeId, function($q) use ($etablissementAnneeId) {
+                    $q->where('etablissementannees_id', $etablissementAnneeId);
+                })
                 ->exists();
 
             if (!$appartientAuProf) {
@@ -381,26 +458,20 @@ class EvaluationController extends AdminController
             'type_evaluation' => 'required|string',
             'notes_groupes' => 'required|array', 
         ]);
-
-        $parametreGlobal = ParametresGlobaux::first();
-        $etablissementAnneeId = $parametreGlobal?->etablissementannees_id;
         
-        // Récupération de la période active via trimestres_id, semestres_id, ou fallback automatique
         $periodeScolaireId = $parametreGlobal?->trimestres_id 
             ?? $parametreGlobal?->semestres_id 
-            ?? \App\Models\PeriodesScolaire::first()?->id_periodes_scolaires;
+            ?? PeriodesScolaire::first()?->id_periodes_scolaires;
 
-        // Sécurité si aucune période n'est trouvée
         if (!$periodeScolaireId) {
             admin_toastr('Erreur : Aucune période active (trimestre/semestre) n\'a été trouvée dans les paramètres globaux.', 'error');
             return back()->withInput();
         }
 
-        // Parcours des groupes de notes spécifiques définis par le professeur
         foreach ($request->notes_groupes as $groupe) {
             $noteSpecifique = $groupe['note_specifique'] ?? null;
             $eleveIds = $groupe['eleve_ids'] ?? [];
-            $observationGroupe = $groupe['observation'] ?? null; // Récupération de l'observation du groupe
+            $observationGroupe = $groupe['observation'] ?? null;
 
             if ($noteSpecifique !== null && !empty($eleveIds)) {
                 foreach ($eleveIds as $classeApprenantId) {
@@ -411,10 +482,10 @@ class EvaluationController extends AdminController
                         'classeapprenants_id' => $classeApprenantId,
                         'nom_evaluation' => $request->nom_evaluation,
                         'type_evaluation' => $request->type_evaluation,
-                        'notes' => $noteSpecifique, // Enregistre la note spécifique
+                        'notes' => $noteSpecifique,
                         'duree' => $request->duree,
                         'date_evaluation' => $request->date_evaluation ?? now(),
-                        'observations' => $observationGroupe, // Enregistre l'observation propre au groupe
+                        'observations' => $observationGroupe,
                         'description' => $request->description,
                         'created_by' => Auth::id(),
                     ]);

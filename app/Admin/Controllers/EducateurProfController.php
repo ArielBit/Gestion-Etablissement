@@ -3,8 +3,11 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Affectation;
+use App\Models\Classe;
 use App\Models\Professeur;
-use App\Models\ParametresGlobaux; // <-- Import indispensable des paramètres globaux
+use App\Models\EducateursScolaritesniveaux;
+use App\Models\Etablissementannee;
+use App\Models\ParametresGlobaux;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Grid;
 use Illuminate\Support\Facades\Auth;
@@ -15,68 +18,95 @@ class EducateurProfController extends AdminController
 
     protected function grid()
     {
-        $grid = new Grid(new Affectation());
-
-        // 1. Récupérer l'année scolaire active depuis les paramètres globaux
+        // 1. Récupérer l'ID de l'année scolaire active globale et son libellé
         $parametreGlobal = ParametresGlobaux::first();
-        $etablissementAnneesId = $parametreGlobal?->etablissementannees_id;
-
-        // FILTRE STRICT : On ne sélectionne que les lignes de la table affectations liées à l'année active
+        $etablissementAnneesId = $parametreGlobal?->anneescolaire_id;
+        
+        $anneeActiveLibelle = 'Non définie';
         if ($etablissementAnneesId) {
-            $grid->model()->where('etablissementannees_id', $etablissementAnneesId);
-        } else {
-            $grid->model()->whereRaw('1 = 0'); // Sécurité si aucune année active n'est définie
+            $anneeActive = $parametreGlobal?->etablissementAnnees;
+            $anneeActiveLibelle = optional($anneeActive?->anneeScolaire)->annee_scolaire ?? 'Année active';
         }
 
         $currentUser = Auth::guard('admin')->user();
         $professeur = null;
+        $classeIdsProfesseur = [];
 
-        // 2. Filtrage initial par le professeur connecté
+        // 2. Identifier le professeur connecté et récupérer les IDs de ses classes pour l'année active
         if ($currentUser && $currentUser->isRole('professeur')) {
             $professeur = Professeur::where('matricule', $currentUser->username)->first();
 
-            if ($professeur) {
-                $grid->model()->where('professeurs_id', $professeur->id_professeurs);
-            } else {
-                $grid->model()->whereRaw('1 = 0');
+            if ($professeur && $etablissementAnneesId) {
+                $classeIdsProfesseur = Affectation::where('professeurs_id', $professeur->id_professeurs)
+                    ->where('etablissementannees_id', $etablissementAnneesId)
+                    ->whereNotNull('classes_id')
+                    ->pluck('classes_id')
+                    ->unique()
+                    ->toArray();
             }
         }
 
-        // Charger les relations utiles pour éviter les requêtes N+1
-        $grid->model()->with(['classes', 'matieres']);
+        // 3. Initialiser la grille sur le modèle Classe
+        $grid = new Grid(new Classe());
 
-        // 3. Traitement du filtre par clic sur un bouton de classe
+        if ($currentUser && $currentUser->isRole('professeur')) {
+            if (!empty($classeIdsProfesseur)) {
+                $grid->model()->whereIn('id_classes', $classeIdsProfesseur);
+            } else {
+                $grid->model()->whereRaw('1 = 0'); // Sécurité si aucune classe
+            }
+        } elseif (!$etablissementAnneesId) {
+            $grid->model()->whereRaw('1 = 0');
+        }
+
+        // 4. Traitement du filtre par clic sur un bouton de classe
         $selectedClassId = request('classes_id');
         if ($selectedClassId) {
-            $grid->model()->where('classes_id', $selectedClassId);
+            $grid->model()->where('id_classes', $selectedClassId);
         }
 
-        // 4. Injecter la barre de boutons filtrée par l'année active
-        $grid->tools(function (Grid\Tools $tools) use ($currentUser, $professeur, $selectedClassId, $etablissementAnneesId) {
-            $query = Affectation::with('classes');
-            
-            // Restreindre la recherche des boutons à l'année active
-            if ($etablissementAnneesId) {
-                $query->where('etablissementannees_id', $etablissementAnneesId);
-            }
-
+        // 5. Injecter l'année active, les boutons dynamiques et le message d'avertissement si vide
+        $grid->tools(function (Grid\Tools $tools) use ($professeur, $selectedClassId, $etablissementAnneesId, $anneeActiveLibelle, $classeIdsProfesseur) {
+            $query = Affectation::with('classes')->whereNotNull('classes_id');
             if ($professeur) {
                 $query->where('professeurs_id', $professeur->id_professeurs);
+            }
+            if ($etablissementAnneesId) {
+                $query->where('etablissementannees_id', $etablissementAnneesId);
             }
             $affectations = $query->get();
 
             $baseUrl = request()->url();
 
-            $html = '<div style="margin-bottom: 10px;">';
+            $html = '<div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
+            
+            // Zone d'affichage de l'Année Scolaire Active
+            $html .= '<div>';
+            $html .= '<span class="label label-success" style="font-size: 13px; padding: 7px 12px; display: inline-block;">';
+            $html .= '<i class="fa fa-calendar"></i> Année Scolaire Active : <strong>' . htmlspecialchars($anneeActiveLibelle) . '</strong>';
+            $html .= '</span>';
+            $html .= '</div>';
+
+            // Message d'alerte si aucune classe n'est attribuée au professeur pour cette année active
+            if ($professeur && empty($classeIdsProfesseur)) {
+                $html .= '</div>';
+                $html .= '<div class="alert alert-warning" style="margin-top: 10px; margin-bottom: 10px;">';
+                $html .= '<i class="fa fa-exclamation-triangle"></i> Aucune classe ne vous a été attribuée pour l\'année scolaire active (<strong>' . htmlspecialchars($anneeActiveLibelle) . '</strong>).';
+                $html .= '</div>';
+                $tools->append($html);
+                return;
+            }
+
             $html .= '<div class="btn-group" style="margin-right: 10px;">';
 
             // Bouton "Toutes mes classes"
             $activeAll = empty($selectedClassId) ? 'btn-primary' : 'btn-default';
             $html .= "<a href='{$baseUrl}' class='btn btn-sm {$activeAll}'>Toutes mes classes</a>";
 
-            // Boutons de filtres par classe (uniques pour éviter les doublons de matières)
-            $classesUniques = $affectations->unique('classes_id');
-            foreach ($classesUniques as $aff) {
+            // Boutons dynamiques uniques par classe
+            $uniqueAffectations = $affectations->unique('classes_id');
+            foreach ($uniqueAffectations as $aff) {
+                if (!$aff->classes_id) continue;
                 $nom = optional($aff->classes)->nom_classe;
                 if (!$nom) continue;
 
@@ -92,51 +122,62 @@ class EducateurProfController extends AdminController
             $tools->append($html);
         });
 
-        // 5. Désactiver le filtre standard par formulaire
+        // 6. Désactiver les filtres et actions superflus
         $grid->disableFilter();
         $grid->disableCreateButton();
         $grid->disableActions();
 
-        // 6. Colonne Nom de(s) l'éducateur(s) (filtré par l'année active et la classe)
-        $grid->column('educateurs_noms', __('Nom'))->display(function () use ($etablissementAnneesId) {
-            $affectationsEduc = Affectation::with('educateurs.personnel')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId) // Comparaison stricte avec l'année active
-                ->whereNotNull('educateurs_id')
-                ->get()
-                ->unique('educateurs_id');
+        // 7. Colonne Classe
+        $grid->column('nom_classe', __('Classe'));
 
-            if ($affectationsEduc->isEmpty()) return '<span class="text-muted">Aucun éducateur attribué pour cette année</span>';
-
-            $html = '';
-            foreach ($affectationsEduc as $aff) {
-                $nom = optional($aff->educateurs->personnel)->nom 
-                    ?? optional($aff->educateurs)->nom_educateur 
-                    ?? 'N/A';
-                $html .= "<strong>{$nom}</strong> ";
+        // 8. Colonne Nom de l'Éducateur (via le niveau de la classe et la table pivot pour l'année active)
+        $grid->column('educateurs_noms', __('Nom de l\'Éducateur'))->display(function () use ($etablissementAnneesId) {
+            $niveauId = $this->scolarites_niveaux_id;
+            if (!$niveauId || !$etablissementAnneesId) {
+                return '<span class="text-muted">N/A</span>';
             }
+
+            $educateursPivots = EducateursScolaritesniveaux::with('educateurs.personnel')
+                ->where('scolarites_niveaux_id', $niveauId)
+                ->where('etablissementannees_id', $etablissementAnneesId)
+                ->get();
+
+            if ($educateursPivots->isEmpty()) {
+                return '<span class="text-muted">Aucun éducateur attribué</span>';
+            }
+
+            $html = '<ul style="list-style: none; padding-left: 0; margin-bottom: 0;">';
+            foreach ($educateursPivots as $pivot) {
+                $nom = optional($pivot->educateurs?->personnel)->nom ?? 'N/A';
+                $html .= "<li style='padding: 2px 0;'><strong>{$nom}</strong></li>";
+            }
+            $html .= '</ul>';
 
             return $html;
         });
 
-        // 7. Colonne Prénom de(s) l'éducateur(s) (filtré par l'année active et la classe)
-        $grid->column('educateurs_prenoms', __('Prénom'))->display(function () use ($etablissementAnneesId) {
-            $affectationsEduc = Affectation::with('educateurs.personnel')
-                ->where('classes_id', $this->classes_id)
-                ->where('etablissementannees_id', $etablissementAnneesId) // Comparaison stricte avec l'année active
-                ->whereNotNull('educateurs_id')
-                ->get()
-                ->unique('educateurs_id');
-
-            if ($affectationsEduc->isEmpty()) return '-';
-
-            $html = '';
-            foreach ($affectationsEduc as $aff) {
-                $prenom = optional($aff->educateurs->personnel)->prenom 
-                    ?? optional($aff->educateurs)->prenom_educateur 
-                    ?? 'N/A';
-                $html .= "{$prenom} ";
+        // 9. Colonne Prénom de l'Éducateur
+        $grid->column('educateurs_prenoms', __('Prénom de l\'Éducateur'))->display(function () use ($etablissementAnneesId) {
+            $niveauId = $this->scolarites_niveaux_id;
+            if (!$niveauId || !$etablissementAnneesId) {
+                return '-';
             }
+
+            $educateursPivots = EducateursScolaritesniveaux::with('educateurs.personnel')
+                ->where('scolarites_niveaux_id', $niveauId)
+                ->where('etablissementannees_id', $etablissementAnneesId)
+                ->get();
+
+            if ($educateursPivots->isEmpty()) {
+                return '-';
+            }
+
+            $html = '<ul style="list-style: none; padding-left: 0; margin-bottom: 0;">';
+            foreach ($educateursPivots as $pivot) {
+                $prenom = optional($pivot->educateurs?->personnel)->prenom ?? '';
+                $html .= "<li style='padding: 2px 0;'>{$prenom}</li>";
+            }
+            $html .= '</ul>';
 
             return $html;
         });

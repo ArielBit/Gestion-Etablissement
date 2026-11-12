@@ -123,19 +123,23 @@
     });
 
     document.getElementById('btn-ajouter-groupe').addEventListener('click', function() {
+        // CORRECTION : Retirer le focus actif pour éviter l'erreur aria-hidden
+        $(document.activeElement).blur();
+
         groupeIndex++;
         var container = document.getElementById('groupes-container');
         var premierBloc = container.querySelector('.groupe-block');
         
-        // Détruire select2 sur le bloc cloné avant de cloner pour éviter les bugs d'affichage
         var oldSelect = premierBloc.querySelector('.select2-eleves');
+        
+        // Détruire proprement select2 sur le bloc source avant le clonage
         if ($(oldSelect).hasClass('select2-hidden-accessible')) {
             $(oldSelect).select2('destroy');
         }
 
         var nouveauBloc = premierBloc.cloneNode(true);
 
-        // Réinitialiser select2 sur l'ancien bloc
+        // Réinitialiser select2 sur l'ancien bloc source
         $(oldSelect).select2();
 
         // Mettre à jour le nom et vider la note spécifique du nouveau bloc
@@ -163,13 +167,21 @@
             chargerEleves(affectationId, selectEleves);
         }
 
-        // Afficher le bouton supprimer
-        nouveauBloc.querySelector('.btn-supprimer-groupe').style.display = 'block';
-        nouveauBloc.querySelector('.btn-supprimer-groupe').addEventListener('click', function() {
+        // Afficher le bouton supprimer et l'attacher
+        var btnSupprimer = nouveauBloc.querySelector('.btn-supprimer-groupe');
+        btnSupprimer.style.display = 'block';
+        btnSupprimer.addEventListener('click', function() {
+            // Détruire Select2 du bloc avant de le supprimer pour nettoyer le DOM
+            var sel = nouveauBloc.querySelector('.select2-eleves');
+            if ($(sel).hasClass('select2-hidden-accessible')) {
+                $(sel).select2('destroy');
+            }
             nouveauBloc.remove();
         });
 
         container.appendChild(nouveauBloc);
+        
+        // Initialiser Select2 sur le nouveau bloc cloné
         $(nouveauBloc.querySelector('.select2-eleves')).select2();
     });
 
